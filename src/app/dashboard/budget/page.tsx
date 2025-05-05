@@ -36,7 +36,7 @@ const budgetItems = [
 ];
 
 export default function BudgetPage() {
-  const [items, setItems] = useState(budgetItems);
+  const [items] = useState(budgetItems);
   
   // Calculate total
   const totalBudget = items.reduce((sum, item) => sum + item.amount, 0);

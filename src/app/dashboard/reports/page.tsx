@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, BarChart3, PieChart, ArrowUpDown, RefreshCw } from "lucide-react";
+import { Download, BarChart3, PieChart, RefreshCw } from "lucide-react";
 import {
   Select,
   SelectContent,
