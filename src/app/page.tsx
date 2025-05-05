@@ -40,8 +40,15 @@ export default function Home() {
             <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
           </svg>
         </div>
-        <h1 className="text-2xl font-bold mb-2">Loading FinanceTrack</h1>
-        <p className="text-muted-foreground">Please wait while we prepare your experience...</p>
+        <h1 className="text-2xl font-bold mb-2">
+          {isLoading ? "Loading FinanceTrack" : "Redirecting..."}
+        </h1>
+        <p className="text-muted-foreground">
+          {isLoading 
+            ? "Please wait while we prepare your experience..." 
+            : "You will be redirected to the appropriate page shortly."
+          }
+        </p>
       </div>
     </div>
   );

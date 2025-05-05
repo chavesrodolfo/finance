@@ -1,22 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { stackClientApp } from "../stack.client";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function Dashboard() {
-  const [userName, setUserName] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
         const user = await stackClientApp.getUser();
-        if (user) {
-          setUserName(user.id || "Finance User");
-        } else {
+        if (!user) {
           // Redirect to home if not authenticated
           router.push('/');
         }
@@ -24,8 +21,6 @@ export default function Dashboard() {
         console.error("Error fetching user:", error);
         // Redirect to home on error
         router.push('/');
-      } finally {
-        setIsLoading(false);
       }
     };
 
@@ -34,31 +29,9 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Welcome section with card */}
-      <Card className="glass-light p-6 border-none shadow-md animate-slide-up card-hover">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold">
-              {isLoading ? "Loading..." : `Welcome back, ${userName}`}
-            </h2>
-            <p className="text-muted-foreground mt-1">
-              Today is May 5, 2025. Here&apos;s your financial summary.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button className="px-4 py-2 bg-primary/90 text-primary-foreground rounded-lg hover:bg-primary transition-colors shadow-sm hover:shadow-lg hover:shadow-primary/20 transition-all">
-              Add Transaction
-            </button>
-            <button className="px-4 py-2 glass-light text-foreground rounded-lg hover:bg-secondary/20 transition-colors border border-border">
-              View Reports
-            </button>
-          </div>
-        </div>
-      </Card>
-
       {/* Key metrics section with animations */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="glass-light overflow-hidden animate-slide-up delay-100 card-hover">
+        <Card className="card-gradient-blue card-glass-effect card-with-glow card-blue-glow rounded-xl overflow-hidden animate-slide-up delay-100">
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium">Total Balance</h3>
@@ -75,7 +48,7 @@ export default function Dashboard() {
           <div className="h-2 w-full bg-primary/30"></div>
         </Card>
         
-        <Card className="glass-light overflow-hidden animate-slide-up delay-200 card-hover">
+        <Card className="card-gradient-green card-glass-effect card-with-glow card-green-glow rounded-xl overflow-hidden animate-slide-up delay-200">
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium">Income</h3>
@@ -92,7 +65,7 @@ export default function Dashboard() {
           <div className="h-2 w-full bg-emerald-500/30"></div>
         </Card>
         
-        <Card className="glass-light overflow-hidden animate-slide-up delay-300 card-hover">
+        <Card className="card-gradient-rose card-glass-effect card-with-glow rounded-xl overflow-hidden animate-slide-up delay-300">
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium">Expenses</h3>
@@ -112,7 +85,7 @@ export default function Dashboard() {
     
       {/* Transactions and budget section with animations */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="glass-light border-none shadow-md animate-slide-up delay-400 card-hover">
+        <Card className="card-glass-effect card-with-glow rounded-xl border border-gray-200/10 shadow-md animate-slide-up delay-400">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-medium">Recent Transactions</h3>
@@ -153,23 +126,27 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
-            <button className="w-full mt-6 text-center text-sm text-primary hover:text-primary/90 transition-colors font-medium">
-              View all transactions →
-            </button>
+            <Link href="/dashboard/transactions">
+              <button className="w-full mt-6 text-center text-sm text-primary hover:text-primary/90 transition-colors font-medium">
+                View all transactions →
+              </button>
+            </Link>
           </div>
         </Card>
         
-        <Card className="glass-light border-none shadow-md animate-slide-up delay-500 card-hover">
+        <Card className="card-glass-effect card-with-glow rounded-xl border border-gray-200/10 shadow-md animate-slide-up delay-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-medium">Monthly Budget</h3>
-              <button className="text-sm text-primary px-2 py-1 rounded-md hover:bg-primary/10 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline mr-1">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                </svg>
-                Edit
-              </button>
+              <Link href="/dashboard/settings">
+                <button className="text-sm text-primary px-2 py-1 rounded-md hover:bg-primary/10 transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline mr-1">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                  Edit
+                </button>
+              </Link>
             </div>
             <div className="space-y-5">
               {[

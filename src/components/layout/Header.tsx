@@ -9,10 +9,10 @@ export function Header() {
   const pathname = usePathname();
   
   const navItems = [
-    { name: "Dashboard", href: "/" },
-    { name: "Transactions", href: "/transactions" },
-    { name: "Reports", href: "/reports" },
-    { name: "Budget", href: "/budget" },
+    { name: "Dashboard", href: "/dashboard" },
+    { name: "Transactions", href: "/dashboard/transactions" },
+    { name: "Reports", href: "/dashboard/reports" },
+    { name: "Settings", href: "/dashboard/settings" },
   ];
 
   return (
@@ -40,7 +40,7 @@ export function Header() {
                 key={item.href}
                 href={item.href}
                 className={`text-sm font-medium transition-colors hover:text-foreground/80 ${
-                  pathname === item.href
+                  pathname === item.href || pathname.startsWith(item.href + "/")
                     ? "text-foreground"
                     : "text-foreground/60"
                 }`}

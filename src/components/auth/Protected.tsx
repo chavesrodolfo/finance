@@ -5,10 +5,9 @@ import { useEffect, useState } from "react";
 
 interface ProtectedProps {
   children: React.ReactNode;
-  fallback?: React.ReactNode;
 }
 
-export function Protected({ children, fallback }: ProtectedProps) {
+export function Protected({ children }: ProtectedProps) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   
   useEffect(() => {

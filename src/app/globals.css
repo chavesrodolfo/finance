@@ -221,6 +221,97 @@
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+/* Enhanced card visual effects with semitransparent colors */
+.card-gradient-purple {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(168, 85, 247, 0.05));
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  box-shadow: 0 4px 20px -4px rgba(139, 92, 246, 0.15);
+}
+
+.card-gradient-blue {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.05));
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  box-shadow: 0 4px 20px -4px rgba(59, 130, 246, 0.15);
+}
+
+.card-gradient-green {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.05));
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  box-shadow: 0 4px 20px -4px rgba(16, 185, 129, 0.15);
+}
+
+.card-gradient-amber {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.05));
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  box-shadow: 0 4px 20px -4px rgba(245, 158, 11, 0.15);
+}
+
+.card-gradient-rose {
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.15), rgba(225, 29, 72, 0.05));
+  border: 1px solid rgba(244, 63, 94, 0.2);
+  box-shadow: 0 4px 20px -4px rgba(244, 63, 94, 0.15);
+}
+
+.card-glass-effect {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
+}
+
+.card-glass-effect::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -50%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.05),
+    transparent
+  );
+  transform: skewX(-15deg);
+  transition: all 0.8s ease;
+}
+
+.card-glass-effect:hover::before {
+  left: 150%;
+}
+
+.card-with-glow {
+  position: relative;
+}
+
+.card-with-glow::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  z-index: -1;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.card-purple-glow:hover::after {
+  opacity: 1;
+  box-shadow: 0 0 20px 2px rgba(139, 92, 246, 0.3);
+}
+
+.card-blue-glow:hover::after {
+  opacity: 1;
+  box-shadow: 0 0 20px 2px rgba(59, 130, 246, 0.3);
+}
+
+.card-green-glow:hover::after {
+  opacity: 1;
+  box-shadow: 0 0 20px 2px rgba(16, 185, 129, 0.3);
+}
+
 /* Staggered animation delays */
 .delay-100 { animation-delay: 100ms; }
 .delay-200 { animation-delay: 200ms; }
