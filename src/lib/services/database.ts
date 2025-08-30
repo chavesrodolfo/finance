@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db'
-import { DEFAULT_CATEGORIES, DEFAULT_DESCRIPTIONS } from '@/lib/constants'
+import { DEFAULT_CATEGORIES } from '@/lib/constants'
 
 export async function initializeUserData(stackUserId: string, email: string, name?: string) {
   // Check if user already exists
@@ -87,4 +87,4 @@ export async function getUserBudgets(userId: string) {
   })
 }
 
-export { DEFAULT_DESCRIPTIONS }
+

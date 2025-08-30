@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { DEFAULT_DESCRIPTIONS } from "@/lib/services/database";
+import { DEFAULT_DESCRIPTIONS } from "@/lib/constants-client";
 
 // Transaction types
 const transactionTypes = [
