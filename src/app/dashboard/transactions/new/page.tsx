@@ -13,80 +13,40 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { DEFAULT_DESCRIPTIONS } from "@/lib/services/database";
 
 // Transaction types
 const transactionTypes = [
-  "Expense",
-  "Income",
-  "Expense Savings",
-  "Return"
+  "EXPENSE",
+  "INCOME", 
+  "EXPENSE_SAVINGS",
+  "RETURN"
 ];
 
-// Transaction categories
-const transactionCategories = [
-  "Food",
-  "Health/medical",
-  "Home",
-  "Home purchase",
-  "Car",
-  "Travel",
-  "Payroll",
-  "Other",
-  "Recreation",
-  "Government",
-  "Gifts",
-  "House Supply",
-  "Basement",
-  "Services"
-];
+// Transaction type display names
+const transactionTypeLabels = {
+  "EXPENSE": "Expense",
+  "INCOME": "Income",
+  "EXPENSE_SAVINGS": "Expense Savings", 
+  "RETURN": "Return"
+};
 
-// Transaction descriptions
-const transactionDescriptions = [
-  "Home Insurance",
-  "Utilities",
-  "Groceries",
-  "Internet",
-  "Mobile phone",
-  "Car (gas)",
-  "Car (insurance)",
-  "Car (loan)",
-  "Car (other costs)",
-  "Restaurants",
-  "Coffee",
-  "Delivery/To go",
-  "Recreation",
-  "Pharmacy",
-  "Clothing",
-  "Housekeeper",
-  "House stuff",
-  "Mortgage",
-  "Property tax",
-  "Reimbursement",
-  "Services",
-  "Salary (Bi-weekly)",
-  "Bonus",
-  "Personal Stuff",
-  "Other",
-  "Child Benefit",
-  "Tax Return",
-  "Daycare",
-  "Gifts",
-  "Gym",
-  "Renovation",
-  "Toiletries",
-  "Vitamin",
-  "Liquor Store",
-  "Dentist"
-];
+interface Category {
+  id: string;
+  name: string;
+  color?: string;
+}
 
 export default function NewTransactionPage() {
   const [date, setDate] = useState<Date>(new Date());
   const [amount, setAmount] = useState<string>("");
   const [description, setDescription] = useState<string>("");
-  const [category, setCategory] = useState<string>("");
-  const [type, setType] = useState<string>("Expense");
+  const [categoryId, setCategoryId] = useState<string>("");
+  const [type, setType] = useState<string>("EXPENSE");
   const [details, setDetails] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const { toast } = useToast();
   const amountInputRef = useRef<HTMLInputElement>(null);
   const saveButtonRef = useRef<HTMLButtonElement>(null);
@@ -98,27 +58,65 @@ export default function NewTransactionPage() {
     }
   }, []);
 
+  // Fetch categories when component mounts
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/categories');
+        if (response.ok) {
+          const categoriesData = await response.json();
+          setCategories(categoriesData);
+        } else {
+          throw new Error('Failed to fetch categories');
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load categories. Please try again.",
+        });
+      } finally {
+        setIsLoadingCategories(false);
+      }
+    };
+
+    fetchCategories();
+  }, [toast]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      // Here you would add code to submit the transaction data to your backend
-      console.log({
-        date,
+      const transactionData = {
         amount: parseFloat(amount),
         description,
-        category,
+        notes: details || undefined,
+        date: date.toISOString(),
         type,
-        details
+        categoryId,
+      };
+
+      const response = await fetch('/api/transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(transactionData),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create transaction');
+      }
 
       // Reset the form after successful submission
       setAmount("");
       setDescription("");
-      setCategory("");
-      // Keep transaction type as "Expense" for convenience
-      setType("Expense");
+      setCategoryId("");
+      // Keep transaction type as "EXPENSE" for convenience
+      setType("EXPENSE");
       setDetails("");
 
       // Focus back on amount field for next transaction
@@ -141,7 +139,7 @@ export default function NewTransactionPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Error adding transaction. Please try again.",
+        description: error instanceof Error ? error.message : "Error adding transaction. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -209,9 +207,9 @@ export default function NewTransactionPage() {
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {transactionTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
+                  {transactionTypes.map((transactionType) => (
+                    <SelectItem key={transactionType} value={transactionType}>
+                      {transactionTypeLabels[transactionType as keyof typeof transactionTypeLabels]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -221,14 +219,22 @@ export default function NewTransactionPage() {
             {/* Category */}
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
-              <Select value={category} onValueChange={setCategory} required>
+              <Select value={categoryId} onValueChange={setCategoryId} required disabled={isLoadingCategories}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
+                  <SelectValue placeholder={isLoadingCategories ? "Loading categories..." : "Select category"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {transactionCategories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      <div className="flex items-center gap-2">
+                        {category.color && (
+                          <div 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: category.color }}
+                          />
+                        )}
+                        {category.name}
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -243,7 +249,7 @@ export default function NewTransactionPage() {
                   <SelectValue placeholder="Select description" />
                 </SelectTrigger>
                 <SelectContent>
-                  {transactionDescriptions.map((desc) => (
+                  {DEFAULT_DESCRIPTIONS.map((desc) => (
                     <SelectItem key={desc} value={desc}>
                       {desc}
                     </SelectItem>

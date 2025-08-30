@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, BarChart3, PieChart, RefreshCw } from "lucide-react";
@@ -12,28 +12,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Sample data for the reports
-const expensesByCategory = [
-  { category: "Housing", amount: 3505.00, percentage: 38.5 },  // Mortgage + Insurance + Property Tax
-  { category: "Food", amount: 2100.00, percentage: 23.1 },     // Groceries + Delivery/Restaurant
-  { category: "Childcare", amount: 1030.00, percentage: 11.3 }, // Daycare
-  { category: "Utilities", amount: 660.00, percentage: 7.2 },   // Utilities + Mobile + Internet
-  { category: "Personal", amount: 580.00, percentage: 6.4 },    // Health + Recreation
-  { category: "Transportation", amount: 500.00, percentage: 5.5 }, // Car expenses
-  { category: "Household", amount: 230.00, percentage: 2.5 },   // House Supply + House keeper
-  { category: "Online", amount: 190.00, percentage: 2.1 },      // Online services + others
-  { category: "Miscellaneous", amount: 312.00, percentage: 3.4 }, // Rest
-];
+interface ExpenseData {
+  category: string;
+  amount: number;
+  percentage: number;
+}
 
-// Monthly expense data for the chart
-const monthlyExpenses = [
-  { month: "Jan", amount: 8950 },
-  { month: "Feb", amount: 9200 },
-  { month: "Mar", amount: 8800 },
-  { month: "Apr", amount: 9100 },
-  { month: "May", amount: 9107 },
-  { month: "Jun", amount: 8920 },
-];
+interface MonthlyData {
+  month: string;
+  amount: number;
+}
 
 // Color mapping for categories with index signature
 const categoryColors: { [key: string]: string } = {
@@ -51,6 +39,14 @@ const categoryColors: { [key: string]: string } = {
 export default function ReportsPage() {
   const [timeRange, setTimeRange] = useState("month");
   const [chartType, setChartType] = useState("bar");
+  const [loading, setLoading] = useState(true);
+  const [expensesByCategory, setExpensesByCategory] = useState<ExpenseData[]>([]);
+  const [monthlyExpenses, setMonthlyExpenses] = useState<MonthlyData[]>([]);
+
+  useEffect(() => {
+    // TODO: Fetch real data from API
+    setLoading(false);
+  }, []);
   
   // Calculate the total amount
   const totalAmount = expensesByCategory.reduce((sum, item) => sum + item.amount, 0);
@@ -100,7 +96,7 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Expense Reports</h1>
+        <h1 className="text-3xl font-bold">Reports</h1>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" className="flex items-center gap-2">
             <Download className="h-4 w-4" />
@@ -112,42 +108,61 @@ export default function ReportsPage() {
           </Button>
         </div>
       </div>
-      
-      <div className="flex flex-col md:flex-row gap-4">
-        <Select value={timeRange} onValueChange={setTimeRange}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Time Range" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="week">Last Week</SelectItem>
-            <SelectItem value="month">Last Month</SelectItem>
-            <SelectItem value="quarter">Last Quarter</SelectItem>
-            <SelectItem value="year">Last Year</SelectItem>
-            <SelectItem value="custom">Custom Range</SelectItem>
-          </SelectContent>
-        </Select>
-        
-        <div className="flex gap-2">
-          <Button
-            variant={chartType === "bar" ? "default" : "outline"}
-            size="sm"
-            className="flex items-center gap-2"
-            onClick={() => setChartType("bar")}
-          >
-            <BarChart3 className="h-4 w-4" />
-            Bar Chart
-          </Button>
-          <Button
-            variant={chartType === "pie" ? "default" : "outline"}
-            size="sm"
-            className="flex items-center gap-2"
-            onClick={() => setChartType("pie")}
-          >
-            <PieChart className="h-4 w-4" />
-            Pie Chart
-          </Button>
+
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="text-muted-foreground">Loading reports...</div>
         </div>
-      </div>
+      ) : expensesByCategory.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium mb-2">No Data Available</h3>
+          <p className="text-muted-foreground mb-4">
+            Add some transactions to generate reports and analytics.
+          </p>
+          <Button variant="outline">Add Transactions</Button>
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-col md:flex-row gap-4">
+            <Select value={timeRange} onValueChange={setTimeRange}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Time Range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="week">Last Week</SelectItem>
+                <SelectItem value="month">Last Month</SelectItem>
+                <SelectItem value="quarter">Last Quarter</SelectItem>
+                <SelectItem value="year">Last Year</SelectItem>
+                <SelectItem value="custom">Custom Range</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <div className="flex gap-2">
+              <Button
+                variant={chartType === "bar" ? "default" : "outline"}
+                size="sm"
+                className="flex items-center gap-2"
+                onClick={() => setChartType("bar")}
+              >
+                <BarChart3 className="h-4 w-4" />
+                Bar Chart
+              </Button>
+              <Button
+                variant={chartType === "pie" ? "default" : "outline"}
+                size="sm"
+                className="flex items-center gap-2"
+                onClick={() => setChartType("pie")}
+              >
+                <PieChart className="h-4 w-4" />
+                Pie Chart
+              </Button>
+            </div>
+          </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="md:col-span-2 bg-black/95 text-white">
@@ -316,6 +331,8 @@ export default function ReportsPage() {
           </div>
         </CardContent>
       </Card>
+        </>
+      )}
     </div>
   );
 } 

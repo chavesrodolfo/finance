@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,58 +8,88 @@ import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns
 import { ChevronLeft, ChevronRight, Plus, Filter } from "lucide-react";
 import Link from "next/link";
 
-// Dados mock de transações para demonstração
-const mockTransactions = [
-  { id: 1, date: new Date(2025, 4, 4), amount: -85.32, description: "Grocery Store", category: "Food", type: "Expense" },
-  { id: 2, date: new Date(2025, 4, 1), amount: 2400.00, description: "Salary Deposit", category: "Income", type: "Income" },
-  { id: 3, date: new Date(2025, 3, 28), amount: -124.79, description: "Electric Bill", category: "Utilities", type: "Expense" },
-  { id: 4, date: new Date(2025, 3, 25), amount: -52.45, description: "Restaurant", category: "Food", type: "Expense" },
-  { id: 5, date: new Date(2025, 4, 10), amount: -35.99, description: "Internet", category: "Utilities", type: "Expense" },
-  { id: 6, date: new Date(2025, 4, 15), amount: -67.50, description: "Car (gas)", category: "Car", type: "Expense" },
-  { id: 7, date: new Date(2025, 4, 18), amount: -150.00, description: "Clothing", category: "Personal Stuff", type: "Expense" },
-  { id: 8, date: new Date(2025, 4, 20), amount: -42.00, description: "Pharmacy", category: "Health/medical", type: "Expense" },
-  { id: 9, date: new Date(2025, 4, 22), amount: -18.75, description: "Coffee", category: "Food", type: "Expense" },
-  { id: 10, date: new Date(2025, 4, 5), amount: -1200.00, description: "Mortgage", category: "Home", type: "Expense" },
-  { id: 11, date: new Date(2025, 4, 8), amount: 500.00, description: "Bonus", category: "Income", type: "Income" },
-  { id: 12, date: new Date(2025, 4, 12), amount: -89.99, description: "Mobile phone", category: "Utilities", type: "Expense" },
-  { id: 13, date: new Date(2025, 4, 25), amount: -60.00, description: "Gym", category: "Health/medical", type: "Expense" },
-  { id: 14, date: new Date(2025, 4, 27), amount: -45.50, description: "Liquor Store", category: "Recreation", type: "Expense" },
-  { id: 15, date: new Date(2025, 4, 30), amount: -22.99, description: "Groceries", category: "Food", type: "Expense" },
-];
+interface Transaction {
+  id: string;
+  amount: number;
+  description: string;
+  notes?: string;
+  date: string;
+  type: 'EXPENSE' | 'INCOME' | 'EXPENSE_SAVINGS' | 'RETURN';
+  category: {
+    id: string;
+    name: string;
+    color?: string;
+  };
+}
+
+const transactionTypeLabels = {
+  "EXPENSE": "Expense",
+  "INCOME": "Income",
+  "EXPENSE_SAVINGS": "Expense Savings",
+  "RETURN": "Return"
+};
 
 export default function TransactionsPage() {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  
-  // Função para avançar para o próximo mês
-  const handleNextMonth = () => {
-    setCurrentMonth(addMonths(currentMonth, 1));
-  };
-  
-  // Função para voltar para o mês anterior
-  const handlePreviousMonth = () => {
-    setCurrentMonth(subMonths(currentMonth, 1));
-  };
-  
-  // Filtrar transações para o mês atual
-  const filteredTransactions = mockTransactions.filter((transaction) => {
-    const transDate = new Date(transaction.date);
-    const firstDay = startOfMonth(currentMonth);
-    const lastDay = endOfMonth(currentMonth);
-    return transDate >= firstDay && transDate <= lastDay;
-  });
-  
-  // Calcular totais para o mês
-  const totalIncome = filteredTransactions
-    .filter(t => t.amount > 0)
-    .reduce((sum, t) => sum + t.amount, 0);
-    
-  const totalExpense = filteredTransactions
-    .filter(t => t.amount < 0)
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
-    
-  const balance = totalIncome - totalExpense;
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  return (
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await fetch('/api/transactions', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch transactions');
+        }
+
+        const data = await response.json();
+        setTransactions(data);
+      } catch (error) {
+        console.error('Error fetching transactions:', error);
+        setError(error instanceof Error ? error.message : 'Failed to fetch transactions');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTransactions();
+  }, []);
+
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+
+  const filteredTransactions = transactions.filter((transaction) => {
+    const transactionDate = new Date(transaction.date);
+    return transactionDate >= monthStart && transactionDate <= monthEnd;
+  });
+
+  const totalIncome = filteredTransactions
+    .filter((t) => t.type === 'INCOME')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const totalExpenses = filteredTransactions
+    .filter((t) => t.type === 'EXPENSE' || t.type === 'EXPENSE_SAVINGS')
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+  const balance = totalIncome - totalExpenses;
+
+  const handlePreviousMonth = () => {
+    setCurrentDate(subMonths(currentDate, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentDate(addMonths(currentDate, 1));
+  };  return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Transactions</h1>
@@ -78,7 +108,7 @@ export default function TransactionsPage() {
             <ChevronLeft className="h-4 w-4" />
           </Button>
           
-          <CardTitle>{format(currentMonth, "MMMM yyyy")}</CardTitle>
+          <CardTitle>{format(currentDate, "MMMM yyyy")}</CardTitle>
           
           <Button variant="outline" size="icon" onClick={handleNextMonth}>
             <ChevronRight className="h-4 w-4" />
@@ -101,7 +131,7 @@ export default function TransactionsPage() {
           <CardContent className="p-6">
             <div className="flex flex-col">
               <span className="text-sm text-muted-foreground">Expenses</span>
-              <span className="text-2xl font-bold text-rose-500">-${totalExpense.toFixed(2)}</span>
+              <span className="text-2xl font-bold text-rose-500">-${totalExpenses.toFixed(2)}</span>
             </div>
           </CardContent>
         </Card>
@@ -129,63 +159,67 @@ export default function TransactionsPage() {
       
       {/* Transactions list */}
       <Card>
-        <ScrollArea className="h-[600px]">
-          {filteredTransactions.length > 0 ? (
-            <div className="divide-y">
-              {filteredTransactions
-                .sort((a, b) => b.date.getTime() - a.date.getTime()) // Sort by date (most recent first)
-                .map((transaction) => (
-                  <div 
-                    key={transaction.id} 
-                    className="flex justify-between items-center p-4 hover:bg-muted/20 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div 
-                        className={`w-10 h-10 rounded-full flex items-center justify-center 
-                          ${transaction.amount > 0 
-                            ? 'bg-emerald-900/30 text-emerald-400' 
-                            : 'bg-rose-900/30 text-rose-400'
-                          }`}
-                      >
-                        {transaction.amount > 0 ? '+' : '-'}
-                      </div>
-                      <div>
-                        <div className="font-medium">{transaction.description}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {format(transaction.date, "dd/MM/yyyy")} • {transaction.category} • {transaction.type}
+        {loading ? (
+          <div className="text-center py-8 text-gray-500">Loading transactions...</div>
+        ) : error ? (
+          <div className="text-center py-8 text-red-500">Error: {error}</div>
+        ) : (
+          <ScrollArea className="h-[600px]">
+            {filteredTransactions.length > 0 ? (
+              <div className="divide-y">
+                {filteredTransactions
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map((transaction) => (
+                    <div 
+                      key={transaction.id} 
+                      className="flex justify-between items-center p-4 hover:bg-muted/20 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div 
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: transaction.category.color || '#6b7280' }}
+                        />
+                        <div>
+                          <div className="font-medium">{transaction.description}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {format(new Date(transaction.date), "dd/MM/yyyy")} • {transaction.category.name} • {transactionTypeLabels[transaction.type]}
+                          </div>
+                          {transaction.notes && (
+                            <div className="text-xs text-gray-400 mt-1">{transaction.notes}</div>
+                          )}
                         </div>
                       </div>
+                      <div 
+                        className={`font-medium ${
+                          transaction.type === 'INCOME' 
+                            ? 'text-emerald-500' 
+                            : 'text-rose-500'
+                        }`}
+                      >
+                        {transaction.type === 'INCOME' ? '+' : '-'}${Math.abs(transaction.amount).toFixed(2)}
+                      </div>
                     </div>
-                    <div 
-                      className={`font-medium ${
-                        transaction.amount > 0 
-                          ? 'text-emerald-500' 
-                          : 'text-rose-500'
-                      }`}
-                    >
-                      {transaction.amount > 0 ? '+' : ''}${Math.abs(transaction.amount).toFixed(2)}
-                    </div>
-                  </div>
-                ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center p-8 text-center">
-              <div className="rounded-full bg-muted/30 p-4 mb-4">
-                <Filter className="h-6 w-6 text-muted-foreground" />
+                  ))}
               </div>
-              <h3 className="text-lg font-medium mb-2">No transactions found</h3>
-              <p className="text-muted-foreground mb-4">
-                There are no transactions recorded for {format(currentMonth, "MMMM yyyy")}.
-              </p>
-              <Link href="/dashboard/transactions/new">
-                <Button variant="outline" className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add transaction
-                </Button>
-              </Link>
-            </div>
-          )}
-        </ScrollArea>
+            ) : (
+              <div className="flex flex-col items-center justify-center p-8 text-center">
+                <div className="rounded-full bg-muted/30 p-4 mb-4">
+                  <Filter className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-medium mb-2">No transactions found</h3>
+                <p className="text-muted-foreground mb-4">
+                  There are no transactions recorded for {format(currentDate, "MMMM yyyy")}.
+                </p>
+                <Link href="/dashboard/transactions/new">
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    Add transaction
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </ScrollArea>
+        )}
       </Card>
     </div>
   );

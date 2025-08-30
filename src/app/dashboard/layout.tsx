@@ -107,19 +107,6 @@ export default function DashboardLayout({
           </div>
         </div>
         
-        {/* Modern footer with subtle gradient */}
-        <footer className="glass-light mt-auto hidden md:block">
-          <div className="container mx-auto max-w-7xl py-6 px-6">
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-muted-foreground">
-                © 2025 FinanceTrack. All rights reserved.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Made with <span className="text-rose-400 animate-pulse-slow">♥</span> for a better financial future
-              </p>
-            </div>
-          </div>
-        </footer>
       </div>
     </div>
   );

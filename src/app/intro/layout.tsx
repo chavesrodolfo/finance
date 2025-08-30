@@ -46,14 +46,6 @@ export default function IntroLayout({
               <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Help</a>
             </div>
           </div>
-          <div className="mt-8 pt-8 border-t border-border/30 flex flex-col md:flex-row justify-between items-center">
-            <p className="text-sm text-muted-foreground">
-              © 2025 FinanceTrack. All rights reserved.
-            </p>
-            <p className="text-sm text-muted-foreground mt-4 md:mt-0">
-              Made with <span className="text-rose-400 animate-pulse-slow">♥</span> for a better financial future
-            </p>
-          </div>
         </div>
       </footer>
     </div>
