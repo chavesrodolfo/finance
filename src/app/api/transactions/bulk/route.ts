@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stackServerApp } from '@/stack'
 import { createTransaction, getUserCategories, initializeUserData } from '@/lib/services/database'
-
-interface Category {
-  id: string
-  name: string
-  color?: string
-  userId: string
-}
+import { prisma } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,7 +30,7 @@ export async function POST(request: NextRequest) {
     // Get user categories for mapping
     const userCategories = await getUserCategories(stackUser.id)
     console.log('Bulk API: User categories:', userCategories)
-    const categoryMap = new Map<string, Category>(userCategories.map((cat: Category) => [cat.name.toLowerCase(), cat]))
+    const categoryMap = new Map(userCategories.map((cat) => [cat.name.toLowerCase(), cat]))
 
     const createdTransactions = []
     let skippedCount = 0
