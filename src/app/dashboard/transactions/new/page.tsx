@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 // Transaction types
 const transactionTypes = [
@@ -83,9 +84,19 @@ export default function NewTransactionPage() {
   const [amount, setAmount] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [category, setCategory] = useState<string>("");
-  const [type, setType] = useState<string>("");
+  const [type, setType] = useState<string>("Expense");
   const [details, setDetails] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
+  const amountInputRef = useRef<HTMLInputElement>(null);
+  const saveButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Focus on amount field when component mounts
+  useEffect(() => {
+    if (amountInputRef.current) {
+      amountInputRef.current.focus();
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,14 +117,32 @@ export default function NewTransactionPage() {
       setAmount("");
       setDescription("");
       setCategory("");
-      setType("");
+      // Keep transaction type as "Expense" for convenience
+      setType("Expense");
       setDetails("");
 
-      // Show success message
-      alert("Transaction added successfully!");
+      // Focus back on amount field for next transaction
+      setTimeout(() => {
+        if (amountInputRef.current) {
+          amountInputRef.current.focus();
+        }
+      }, 100);
+
+      // Show success toast
+      toast({
+        variant: "success",
+        title: "Success!",
+        description: "Transaction added successfully!",
+      });
     } catch (error) {
       console.error("Error adding transaction:", error);
-      alert("Error adding transaction. Please try again.");
+      
+      // Show error toast
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Error adding transaction. Please try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -159,6 +188,7 @@ export default function NewTransactionPage() {
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2">$</span>
                 <Input
+                  ref={amountInputRef}
                   id="amount"
                   type="number"
                   step="0.01"
@@ -230,6 +260,14 @@ export default function NewTransactionPage() {
                 placeholder="Enter any additional details about this transaction..."
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Tab' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (saveButtonRef.current) {
+                      saveButtonRef.current.focus();
+                    }
+                  }
+                }}
                 rows={4}
               />
             </div>
@@ -243,7 +281,11 @@ export default function NewTransactionPage() {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button 
+              ref={saveButtonRef}
+              type="submit" 
+              disabled={isSubmitting}
+            >
               {isSubmitting ? "Saving..." : "Save Transaction"}
             </Button>
           </div>

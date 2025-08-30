@@ -15,7 +15,6 @@ export default function LogoutPage() {
         sessionStorage.clear();
         
         // Use the Stack API to properly log out
-        // Obter o usuário atual e chamar signOut nele
         const user = await stackClientApp.getUser();
         if (user) {
           await user.signOut();

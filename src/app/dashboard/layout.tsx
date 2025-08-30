@@ -15,7 +15,7 @@ export default function DashboardLayout({
   const navItems = [
     { name: "Dashboard", href: "/dashboard", icon: <Home className="h-5 w-5" /> },
     { name: "Transactions", href: "/dashboard/transactions", icon: <Clock className="h-5 w-5" /> },
-    { name: "New Transaction", href: "/dashboard/transactions/new", icon: <DollarSign className="h-5 w-5" /> },
+    { name: "New", href: "/dashboard/transactions/new", icon: <DollarSign className="h-5 w-5" /> },
     { name: "Reports", href: "/dashboard/reports", icon: <BarChart className="h-5 w-5" /> },
     { name: "Budget", href: "/dashboard/budget", icon: <PieChart className="h-5 w-5" /> },
     { name: "Investments", href: "/dashboard/investments", icon: <TrendingUp className="h-5 w-5" /> },
@@ -83,12 +83,12 @@ export default function DashboardLayout({
           </div>
         </header>
         
-        <main className="container max-w-7xl mx-auto py-8 px-6 flex-1">
+        <main className="container max-w-7xl mx-auto py-8 px-6 flex-1 pb-20 md:pb-8">
           {children}
         </main>
         
         {/* Mobile Navigation */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background z-10">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background z-50">
           <div className="grid grid-cols-5 gap-1 p-2">
             {navItems.slice(0, 5).map((item) => (
               <Link 
