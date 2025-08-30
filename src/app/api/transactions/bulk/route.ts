@@ -3,6 +3,16 @@ import { stackServerApp } from '@/stack'
 import { createTransaction, getUserCategories, initializeUserData } from '@/lib/services/database'
 import { prisma } from '@/lib/db'
 
+type CategoryData = {
+  id: string
+  name: string
+  description: string | null
+  color: string | null
+  userId: string
+  createdAt: Date
+  updatedAt: Date
+}
+
 export async function POST(request: NextRequest) {
   try {
     const stackUser = await stackServerApp.getUser()
@@ -30,7 +40,7 @@ export async function POST(request: NextRequest) {
     // Get user categories for mapping
     const userCategories = await getUserCategories(stackUser.id)
     console.log('Bulk API: User categories:', userCategories)
-    const categoryMap = new Map(userCategories.map((cat: any) => [cat.name.toLowerCase(), cat]))
+    const categoryMap = new Map<string, CategoryData>(userCategories.map((cat: CategoryData) => [cat.name.toLowerCase(), cat]))
 
     const createdTransactions = []
     let skippedCount = 0
@@ -68,7 +78,7 @@ export async function POST(request: NextRequest) {
             categoryMap.set(categoryName.toLowerCase(), newCategory);
           }
         } else {
-          categoryId = categoryData!.id;
+          categoryId = categoryData.id;
         }
 
         // Only skip if amount is zero or missing
