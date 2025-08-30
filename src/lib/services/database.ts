@@ -30,10 +30,16 @@ export async function initializeUserData(stackUserId: string, email: string, nam
     })
 
     // Fetch user with categories
-    user = await prisma.user.findUnique({
+    const userWithCategories = await prisma.user.findUnique({
       where: { id: user.id },
       include: { categories: true }
-    })!
+    })
+    
+    if (!userWithCategories) {
+      throw new Error('Failed to fetch user after creating categories')
+    }
+    
+    user = userWithCategories
   }
 
   return user

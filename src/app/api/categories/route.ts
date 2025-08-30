@@ -17,6 +17,10 @@ export async function GET() {
       stackUser.displayName || undefined
     )
 
+    if (!dbUser) {
+      return NextResponse.json({ error: 'Failed to initialize user' }, { status: 500 })
+    }
+
     // Get user categories
     const categories = await getUserCategories(dbUser.id)
 
