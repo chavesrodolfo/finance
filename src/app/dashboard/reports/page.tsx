@@ -29,7 +29,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [expensesByCategory, setExpensesByCategory] = useState<ExpenseData[]>([]);
   const [monthlyExpenses, setMonthlyExpenses] = useState<MonthlyData[]>([]);
-  const [_error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const categoryColors: { [key: string]: string } = {
     "Housing": "#ef4444",
@@ -158,6 +158,17 @@ export default function ReportsPage() {
       {loading ? (
         <div className="text-center py-12">
           <div className="text-muted-foreground">Loading reports...</div>
+        </div>
+      ) : error ? (
+        <div className="text-center py-12">
+          <div className="mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium mb-2 text-red-500">Error Loading Reports</h3>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button variant="outline" onClick={() => window.location.reload()}>Try Again</Button>
         </div>
       ) : expensesByCategory.length === 0 ? (
         <div className="text-center py-12">
