@@ -107,7 +107,7 @@ export default function TransactionsPage() {
     setCurrentDate(addMonths(currentDate, 1));
   };
 
-  const parseCSV = (text: string): any[] => {
+  const parseCSV = (text: string): Record<string, string>[] => {
     const lines = text.split('\n').filter(line => line.trim());
     if (lines.length === 0) return [];
     
@@ -139,7 +139,7 @@ export default function TransactionsPage() {
     
     for (let i = 1; i < lines.length; i++) {
       const values = parseCSVLine(lines[i]);
-      const row: any = {};
+      const row: Record<string, string> = {};
       
       headers.forEach((header, index) => {
         if (values[index] && values[index].trim() !== '') {
@@ -241,7 +241,7 @@ export default function TransactionsPage() {
       const responseData = await response.json();
       console.log('API response:', response.status, responseData);
 
-      let toastDescription = `Successfully imported ${responseData.count} transactions.`;
+      const toastDescription = `Successfully imported ${responseData.count} transactions.`;
       const reasons = skippedTransactions.map((skipped, idx) => `${idx + 1}. ${skipped.reason}`);
       setImportSummary({
         created: responseData.count,
@@ -270,37 +270,6 @@ export default function TransactionsPage() {
   setProgress(null);
   // Reset the input
   event.target.value = '';
-    {progress !== null && (
-      <div className="w-full flex flex-col items-center my-4">
-        <div className="w-1/2 bg-gray-200 rounded-full h-4">
-          <div
-            className="bg-blue-500 h-4 rounded-full transition-all"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <span className="mt-2 text-sm text-gray-700">Importing CSV... {progress}%</span>
-      </div>
-    )}
-    {importSummary && (
-      <div className="w-full flex flex-col items-center my-4 p-4 bg-white border rounded shadow">
-        <h2 className="text-lg font-bold mb-2">CSV Import Summary</h2>
-        <p className="mb-1">Created: <span className="font-mono">{importSummary.created}</span></p>
-        <p className="mb-1">Skipped: <span className="font-mono">{importSummary.skipped}</span></p>
-        {importSummary.reasons.length > 0 && (
-          <div className="mt-2 text-left w-full">
-            <p className="font-semibold">Reasons for skipped transactions:</p>
-            <ul className="list-disc ml-6 text-sm">
-              {importSummary.reasons.slice(0, 10).map((reason, idx) => (
-                <li key={idx}>{reason}</li>
-              ))}
-              {importSummary.reasons.length > 10 && (
-                <li>...and {importSummary.reasons.length - 10} more.</li>
-              )}
-            </ul>
-          </div>
-        )}
-      </div>
-    )}
     }
   };
 
@@ -363,7 +332,9 @@ export default function TransactionsPage() {
       title: "Template downloaded",
       description: "CSV template with sample data has been downloaded.",
     });
-  };  return (
+  };
+
+  return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Transactions</h1>
@@ -401,6 +372,39 @@ export default function TransactionsPage() {
         </div>
       </div>
       
+      {/* Progress and Import Summary */}
+      {progress !== null && (
+        <div className="w-full flex flex-col items-center my-4">
+          <div className="w-1/2 bg-gray-200 rounded-full h-4">
+            <div
+              className="bg-blue-500 h-4 rounded-full transition-all"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <span className="mt-2 text-sm text-gray-700">Importing CSV... {progress}%</span>
+        </div>
+      )}
+      {importSummary && (
+        <div className="w-full flex flex-col items-center my-4 p-4 bg-white border rounded shadow">
+          <h2 className="text-lg font-bold mb-2">CSV Import Summary</h2>
+          <p className="mb-1">Created: <span className="font-mono">{importSummary.created}</span></p>
+          <p className="mb-1">Skipped: <span className="font-mono">{importSummary.skipped}</span></p>
+          {importSummary.reasons.length > 0 && (
+            <div className="mt-2 text-left w-full">
+              <p className="font-semibold">Reasons for skipped transactions:</p>
+              <ul className="list-disc ml-6 text-sm">
+                {importSummary.reasons.slice(0, 10).map((reason, idx) => (
+                  <li key={idx}>{reason}</li>
+                ))}
+                {importSummary.reasons.length > 10 && (
+                  <li>...and {importSummary.reasons.length - 10} more.</li>
+                )}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* CSV Import/Export Info */}
       <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
         <div className="flex items-start gap-3">

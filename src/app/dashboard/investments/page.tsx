@@ -26,7 +26,7 @@ interface InvestmentAccount {
 }
 
 export default function InvestmentsPage() {
-  const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
+  const [accounts] = useState<InvestmentAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAmounts, setShowAmounts] = useState(true);
 

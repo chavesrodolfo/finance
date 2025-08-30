@@ -48,8 +48,8 @@ export async function POST(request: NextRequest) {
         console.log('Bulk API: Processing transaction:', transactionData);
         // Always assign a valid category, create if not found
         let categoryId;
-        let categoryName = transactionData.categoryName ? transactionData.categoryName.trim() : 'Other';
-        let categoryData = categoryMap.get(categoryName.toLowerCase());
+        const categoryName = transactionData.categoryName ? transactionData.categoryName.trim() : 'Other';
+        const categoryData = categoryMap.get(categoryName.toLowerCase());
         if (!categoryData) {
           // Check database for existing category (case-insensitive)
           const existingCategory = await prisma.category.findFirst({

@@ -29,7 +29,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [expensesByCategory, setExpensesByCategory] = useState<ExpenseData[]>([]);
   const [monthlyExpenses, setMonthlyExpenses] = useState<MonthlyData[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [_error, setError] = useState<string | null>(null);
 
   const categoryColors: { [key: string]: string } = {
     "Housing": "#ef4444",
@@ -50,13 +50,13 @@ export default function ReportsPage() {
       try {
         const response = await fetch("/api/transactions");
         if (!response.ok) throw new Error("Failed to fetch transactions");
-        const data = await response.json();
-        // Process analytics
-        const expenses = data.filter((t: any) => t.type === "EXPENSE" || t.type === "EXPENSE_SAVINGS");
-        const total = expenses.reduce((sum: number, t: any) => sum + Math.abs(t.amount), 0);
-        // Category breakdown
-        const categoryMap: { [key: string]: number } = {};
-        expenses.forEach((t: any) => {
+                    const data = await response.json();
+            // Process analytics
+            const expenses = data.filter((t: { type: string }) => t.type === "EXPENSE" || t.type === "EXPENSE_SAVINGS");
+            const total = expenses.reduce((sum: number, t: { amount: number }) => sum + Math.abs(t.amount), 0);
+            // Category breakdown
+            const categoryMap: { [key: string]: number } = {};
+            expenses.forEach((t: { amount: number; category?: { name: string } }) => {
           const cat = t.category?.name || "Uncategorized";
           categoryMap[cat] = (categoryMap[cat] || 0) + Math.abs(t.amount);
         });
@@ -67,9 +67,9 @@ export default function ReportsPage() {
         }));
         categories.sort((a, b) => b.amount - a.amount);
         setExpensesByCategory(categories);
-        // Monthly trend
-        const monthMap: { [key: string]: number } = {};
-        expenses.forEach((t: any) => {
+                    // Monthly trend
+            const monthMap: { [key: string]: number } = {};
+            expenses.forEach((t: { amount: number; date: string }) => {
           const d = new Date(t.date);
           const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
           monthMap[key] = (monthMap[key] || 0) + Math.abs(t.amount);
@@ -86,8 +86,8 @@ export default function ReportsPage() {
           });
         }
         setMonthlyExpenses(months);
-      } catch (err: any) {
-        setError(err.message || "Unknown error");
+                } catch (err: unknown) {
+        setError((err as Error).message || "Unknown error");
       } finally {
         setLoading(false);
       }

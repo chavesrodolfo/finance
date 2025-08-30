@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { stackServerApp } from '@/stack'
 import { getUserCategories, initializeUserData } from '@/lib/services/database'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Get the authenticated user
     const stackUser = await stackServerApp.getUser()

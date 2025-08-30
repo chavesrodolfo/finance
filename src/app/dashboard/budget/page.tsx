@@ -20,7 +20,7 @@ interface BudgetItem {
 }
 
 export default function BudgetPage() {
-  const [items, setItems] = useState<BudgetItem[]>([]);
+  const [items] = useState<BudgetItem[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     // TODO: Fetch budget items from API

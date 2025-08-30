@@ -164,7 +164,7 @@ export default function Dashboard() {
               ) : recentTransactions.length === 0 ? (
                 <div className="text-center py-4 text-gray-500">No recent transactions</div>
               ) : (
-                recentTransactions.map((transaction, i) => (
+                recentTransactions.map((transaction) => (
                   <div key={transaction.id} className="flex justify-between items-center p-3 rounded-lg hover:bg-muted/10 transition-colors">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
