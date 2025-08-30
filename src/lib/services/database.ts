@@ -21,17 +21,17 @@ export async function initializeUserData(stackUserId: string, email: string, nam
   }
 
   // Create default categories if user has none
-  if (user.categories.length === 0) {
+  if (user && user.categories.length === 0) {
     await prisma.category.createMany({
       data: DEFAULT_CATEGORIES.map(category => ({
         ...category,
-        userId: user.id
+        userId: user!.id
       }))
     })
 
     // Fetch user with categories
     const userWithCategories = await prisma.user.findUnique({
-      where: { id: user.id },
+      where: { id: user!.id },
       include: { categories: true }
     })
     

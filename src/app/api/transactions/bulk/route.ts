@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     // Get user categories for mapping
     const userCategories = await getUserCategories(stackUser.id)
     console.log('Bulk API: User categories:', userCategories)
-    const categoryMap = new Map(userCategories.map((cat) => [cat.name.toLowerCase(), cat]))
+    const categoryMap = new Map(userCategories.map((cat: any) => [cat.name.toLowerCase(), cat]))
 
     const createdTransactions = []
     let skippedCount = 0
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
             categoryMap.set(categoryName.toLowerCase(), newCategory);
           }
         } else {
-          categoryId = categoryData.id;
+          categoryId = categoryData!.id;
         }
 
         // Only skip if amount is zero or missing
