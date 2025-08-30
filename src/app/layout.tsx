@@ -3,6 +3,7 @@ import { StackProvider, StackTheme } from "@stackframe/stack";
 import { stackServerApp } from "../stack";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
+import { ThemeProvider } from "@/components/theme/theme-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -26,18 +27,25 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased dark:bg-slate-950 dark:text-slate-50 bg-pattern`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        <div className="bg-gradient-radial from-primary/5 via-transparent to-transparent fixed inset-0 h-screen w-screen -z-10"></div>
-        <div className="noise-pattern fixed inset-0 h-screen w-screen opacity-30 -z-10"></div>
-        <StackProvider app={stackServerApp}>
-          <StackTheme>
-            {children}
-            <Toaster />
-          </StackTheme>
-        </StackProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <div className="bg-gradient-radial from-primary/5 via-transparent to-transparent fixed inset-0 h-screen w-screen -z-10"></div>
+          <div className="noise-pattern fixed inset-0 h-screen w-screen opacity-30 -z-10"></div>
+          <StackProvider app={stackServerApp}>
+            <StackTheme>
+              {children}
+              <Toaster />
+            </StackTheme>
+          </StackProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { stackClientApp } from "../stack.client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { MetricCardSkeleton, TransactionListSkeleton, BudgetCardSkeleton } from "@/components/dashboard/skeletons";
 
 interface Transaction {
   id: string;
@@ -90,6 +91,25 @@ export default function Dashboard() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 4);
 
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        {/* Key metrics skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
+        </div>
+        
+        {/* Transactions and budget skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <TransactionListSkeleton />
+          <BudgetCardSkeleton />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Key metrics section with animations */}
@@ -148,7 +168,7 @@ export default function Dashboard() {
     
       {/* Transactions and budget section with animations */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="card-glass-effect card-with-glow rounded-xl border border-gray-200/10 shadow-md animate-slide-up delay-400">
+        <Card className="card-glass-effect card-with-glow rounded-xl border border-border/20 shadow-md animate-slide-up delay-400">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-medium">Recent Transactions</h3>
@@ -159,10 +179,8 @@ export default function Dashboard() {
               </select>
             </div>
             <div className="space-y-4">
-              {loading ? (
-                <div className="text-center py-4 text-gray-500">Loading transactions...</div>
-              ) : recentTransactions.length === 0 ? (
-                <div className="text-center py-4 text-gray-500">No recent transactions</div>
+              {recentTransactions.length === 0 ? (
+                <div className="text-center py-4 text-muted-foreground">No recent transactions</div>
               ) : (
                 recentTransactions.map((transaction) => (
                   <div key={transaction.id} className="flex justify-between items-center p-3 rounded-lg hover:bg-muted/10 transition-colors">
@@ -200,7 +218,7 @@ export default function Dashboard() {
           </div>
         </Card>
         
-        <Card className="card-glass-effect card-with-glow rounded-xl border border-gray-200/10 shadow-md animate-slide-up delay-500">
+        <Card className="card-glass-effect card-with-glow rounded-xl border border-border/20 shadow-md animate-slide-up delay-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-medium">Monthly Budget</h3>

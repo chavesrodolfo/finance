@@ -478,13 +478,13 @@ export default function TransactionsPage() {
       </div>
       
       {/* Transactions list */}
-      <Card>
+      <Card className="flex flex-col">
         {loading ? (
           <div className="text-center py-8 text-gray-500">Loading transactions...</div>
         ) : error ? (
           <div className="text-center py-8 text-red-500">Error: {error}</div>
         ) : (
-          <ScrollArea className="h-[600px]">
+          <div className="max-h-[600px] overflow-y-auto">
             {filteredTransactions.length > 0 ? (
               <div className="divide-y">
                 {filteredTransactions
@@ -538,7 +538,7 @@ export default function TransactionsPage() {
                 </Link>
               </div>
             )}
-          </ScrollArea>
+          </div>
         )}
       </Card>
     </div>
