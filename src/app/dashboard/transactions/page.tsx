@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { ChevronLeft, ChevronRight, Plus, Filter, Upload, Download, FileText, Info } from "lucide-react";
 import Link from "next/link";
