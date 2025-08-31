@@ -7,6 +7,7 @@ import { stackClientApp } from "../stack.client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { MetricCardSkeleton, TransactionListSkeleton, BudgetCardSkeleton } from "@/components/dashboard/skeletons";
+import { formatCurrency } from "@/lib/utils";
 
 interface Transaction {
   id: string;
@@ -22,9 +23,19 @@ interface Transaction {
   };
 }
 
+interface BudgetItem {
+  id: string;
+  name: string;
+  amount: number;
+  period: string;
+  startDate: string;
+  endDate?: string;
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,8 +47,9 @@ export default function Dashboard() {
           return;
         }
         
-        // Fetch transactions after user is confirmed
-        await fetchTransactions();
+        // Fetch transactions and budget data after user is confirmed
+        await Promise.all([fetchTransactions(), fetchBudget()]);
+        setLoading(false);
       } catch (error) {
         console.error("Error fetching user:", error);
         router.push('/');
@@ -59,13 +71,25 @@ export default function Dashboard() {
         }
       } catch (error) {
         console.error('Error fetching transactions:', error);
-      } finally {
-        setLoading(false);
+      }
+    };
+
+    const fetchBudget = async () => {
+      try {
+        const response = await fetch('/api/budget');
+        
+        if (response.ok) {
+          const data = await response.json();
+          setBudgetItems(data);
+        }
+      } catch (error) {
+        console.error('Error fetching budget:', error);
       }
     };
 
     fetchUser();
   }, [router]);
+
 
   // Calculate summary data
   const currentMonth = new Date().getMonth();
@@ -91,6 +115,12 @@ export default function Dashboard() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 4);
 
+  // Calculate budget summary
+  const totalBudget = budgetItems.reduce((sum, item) => sum + item.amount, 0);
+  const topBudgetItems = [...budgetItems]
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 3);
+
   if (loading) {
     return (
       <div className="space-y-8">
@@ -112,67 +142,64 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Key metrics section with animations */}
+      {/* Key metrics section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="card-gradient-blue card-glass-effect card-with-glow card-blue-glow rounded-xl overflow-hidden animate-slide-up delay-100">
+        <Card className="bg-card/50 backdrop-blur-sm border-border/20">
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">Total Balance</h3>
-              <div className="bg-primary/10 p-2 rounded-full animate-pulse-slow">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-primary">
+              <h3 className="text-lg font-medium text-foreground">Total Balance</h3>
+              <div className="bg-muted/30 p-2 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-muted-foreground">
                   <rect x="2" y="5" width="20" height="14" rx="2" />
                   <line x1="2" y1="10" x2="22" y2="10" />
                 </svg>
               </div>
             </div>
-            <p className="text-3xl font-bold text-primary animate-shimmer">${balance.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-foreground">${balance.toFixed(2)}</p>
             <p className="text-sm text-muted-foreground mt-1">Current balance</p>
           </div>
-          <div className="h-2 w-full bg-primary/30"></div>
         </Card>
         
-        <Card className="card-gradient-green card-glass-effect card-with-glow card-green-glow rounded-xl overflow-hidden animate-slide-up delay-200">
+        <Card className="bg-card/50 backdrop-blur-sm border-border/20">
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">Income</h3>
-              <div className="bg-emerald-900/30 p-2 rounded-full animate-pulse-slow">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-emerald-400">
+              <h3 className="text-lg font-medium text-foreground">Income</h3>
+              <div className="bg-muted/30 p-2 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-muted-foreground">
                   <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
                   <polyline points="16 7 22 7 22 13" />
                 </svg>
               </div>
             </div>
-            <p className="text-3xl font-bold text-emerald-400 animate-shimmer">${totalIncome.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-emerald-400">${totalIncome.toFixed(2)}</p>
             <p className="text-sm text-muted-foreground mt-1">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
           </div>
-          <div className="h-2 w-full bg-emerald-500/30"></div>
         </Card>
         
-        <Card className="card-gradient-rose card-glass-effect card-with-glow rounded-xl overflow-hidden animate-slide-up delay-300">
+        <Card className="bg-card/50 backdrop-blur-sm border-border/20">
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">Expenses</h3>
-              <div className="bg-rose-900/30 p-2 rounded-full animate-pulse-slow">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-rose-400">
+              <h3 className="text-lg font-medium text-foreground">Expenses</h3>
+              <div className="bg-muted/30 p-2 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-muted-foreground">
                   <polyline points="22 17 13.5 8.5 8.5 13.5 2 7" />
                   <polyline points="16 17 22 17 22 11" />
                 </svg>
               </div>
             </div>
-            <p className="text-3xl font-bold text-rose-400 animate-shimmer">${totalExpenses.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-red-400">${totalExpenses.toFixed(2)}</p>
             <p className="text-sm text-muted-foreground mt-1">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
           </div>
-          <div className="h-2 w-full bg-rose-500/30"></div>
         </Card>
       </div>
     
-      {/* Transactions and budget section with animations */}
+      {/* Transactions and budget section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="card-glass-effect card-with-glow rounded-xl border border-border/20 shadow-md animate-slide-up delay-400">
+        <Card className="bg-card/50 backdrop-blur-sm border-border/20">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-medium">Recent Transactions</h3>
-              <select className="text-sm glass-light rounded-md px-2 py-1 bg-transparent">
+              <h3 className="text-lg font-medium text-foreground">Recent Transactions</h3>
+              <select className="text-sm rounded-md px-3 py-1 bg-muted/30 border border-border/30 text-foreground">
                 <option>Last 7 days</option>
                 <option>Last 30 days</option>
                 <option>This month</option>
@@ -187,13 +214,13 @@ export default function Dashboard() {
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                         transaction.type === 'INCOME'
-                          ? 'bg-emerald-900/30 text-emerald-400 animate-pulse-slow' 
-                          : 'bg-rose-900/30 text-rose-400 animate-pulse-slow'
+                          ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                          : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
                       }`}>
                         {transaction.type === 'INCOME' ? '+' : '-'}
                       </div>
                       <div>
-                        <p className="font-medium">{transaction.description}</p>
+                        <p className="font-medium text-foreground">{transaction.description}</p>
                         <p className="text-xs text-muted-foreground">
                           {new Date(transaction.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {transaction.category.name}
                         </p>
@@ -202,7 +229,7 @@ export default function Dashboard() {
                     <p className={`font-medium ${
                       transaction.type === 'INCOME'
                         ? 'text-emerald-400' 
-                        : 'text-rose-400'
+                        : 'text-red-400'
                     }`}>
                       {transaction.type === 'INCOME' ? '+' : '-'}${Math.abs(transaction.amount).toFixed(2)}
                     </p>
@@ -210,59 +237,95 @@ export default function Dashboard() {
                 ))
               )}
             </div>
-            <Link href="/dashboard/transactions">
-              <button className="w-full mt-6 text-center text-sm text-primary hover:text-primary/90 transition-colors font-medium">
-                View all transactions →
-              </button>
+            <Link href="/dashboard/transactions" className="block w-full mt-6 text-center text-sm text-blue-400 hover:text-blue-300 transition-colors font-medium py-2 border border-border/30 rounded-md hover:bg-muted/10">
+              View all transactions →
             </Link>
           </div>
         </Card>
         
-        <Card className="card-glass-effect card-with-glow rounded-xl border border-border/20 shadow-md animate-slide-up delay-500">
+        <Card className="bg-card/50 backdrop-blur-sm border-border/20">
           <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-medium">Monthly Budget</h3>
-              <Link href="/dashboard/settings">
-                <button className="text-sm text-primary px-2 py-1 rounded-md hover:bg-primary/10 transition-colors">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline mr-1">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                  </svg>
-                  Edit
-                </button>
-              </Link>
+            <div className="mb-6">
+              <h3 className="text-lg font-medium text-foreground">Monthly Budget</h3>
             </div>
             <div className="space-y-5">
-              <div className="text-center py-8">
-                <div className="mb-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-medium mb-2">No Budget Set Up</h3>
-                <p className="text-muted-foreground mb-4">
-                  Create your monthly budget to track spending and financial goals.
-                </p>
-                <Link href="/dashboard/budget">
-                  <Button variant="outline" className="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 5v14m-7-7h14"/>
+              {budgetItems.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
-                    Set Up Budget
-                  </Button>
-                </Link>
-              </div>
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">No Budget Set Up</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Create your monthly budget to track spending and financial goals.
+                  </p>
+                  <Link href="/dashboard/budget">
+                    <Button variant="outline" className="flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 5v14m-7-7h14"/>
+                      </svg>
+                      Set Up Budget
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-3xl font-bold text-foreground">{formatCurrency(totalBudget)}</p>
+                  </div>
+                  
+                  <div className="pt-4 border-t">
+                    <h4 className="text-lg font-medium mb-4 text-foreground">Top Expenses</h4>
+                    <div className="space-y-4">
+                      {topBudgetItems.map((item, index) => (
+                        <div key={item.id} className="group">
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="font-medium text-foreground">{item.name}</span>
+                            <span className="text-muted-foreground">{((item.amount / totalBudget) * 100).toFixed(1)}%</span>
+                          </div>
+                          <div className="flex items-center">
+                            <div className="w-full h-6 bg-muted/30 rounded-md overflow-hidden">
+                              <div 
+                                className={`h-full rounded-md ${
+                                  index === 0 ? "bg-blue-500" :
+                                  index === 1 ? "bg-emerald-500" :
+                                  index === 2 ? "bg-amber-500" :
+                                  "bg-purple-500"
+                                }`}
+                                style={{ width: `${(item.amount / totalBudget) * 100}%` }}
+                              >
+                                <span className="text-xs text-white font-medium ml-2 flex items-center h-full">
+                                  {formatCurrency(item.amount)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <Link href="/dashboard/budget" className="block w-full text-center text-sm text-blue-400 hover:text-blue-300 transition-colors font-medium py-2 border border-border/30 rounded-md hover:bg-muted/10">
+                    View Full Budget →
+                  </Link>
+                </div>
+              )}
             </div>
-            <div className="mt-6 pt-4 border-t border-border/30">
-              <div className="flex justify-between items-center">
-                <span className="font-medium">Total Spent</span>
-                <span className="font-bold text-lg">${totalExpenses.toFixed(2)}</span>
+            {budgetItems.length > 0 && (
+              <div className="mt-6 pt-4 border-t border-border/30">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium text-foreground">Total Spent</span>
+                  <span className="font-bold text-lg text-foreground">${totalExpenses.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center mt-1">
+                  <span className="text-sm text-muted-foreground">Budget: {formatCurrency(totalBudget)}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {((totalExpenses / totalBudget) * 100).toFixed(0)}% used
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between items-center mt-1">
-                <span className="text-sm text-muted-foreground">This month</span>
-                <span className="text-sm text-muted-foreground">${totalIncome.toFixed(2)} income</span>
-              </div>
-            </div>
+            )}
           </div>
         </Card>
       </div>

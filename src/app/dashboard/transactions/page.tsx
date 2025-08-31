@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { ChevronLeft, ChevronRight, Plus, Filter, Upload, Download, FileText } from "lucide-react";
 import Link from "next/link";
@@ -334,6 +335,85 @@ export default function TransactionsPage() {
     });
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-9 w-32" />
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-20" />
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+        </div>
+        
+        {/* Month controller skeleton */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between py-4">
+            <Skeleton className="h-10 w-10" />
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-10 w-10" />
+          </CardHeader>
+        </Card>
+        
+        {/* Month summary skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="bg-blue-50/10">
+            <CardContent className="p-6">
+              <div className="flex flex-col">
+                <Skeleton className="h-4 w-16 mb-2" />
+                <Skeleton className="h-8 w-24" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-blue-50/10">
+            <CardContent className="p-6">
+              <div className="flex flex-col">
+                <Skeleton className="h-4 w-20 mb-2" />
+                <Skeleton className="h-8 w-24" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-blue-50/10">
+            <CardContent className="p-6">
+              <div className="flex flex-col">
+                <Skeleton className="h-4 w-16 mb-2" />
+                <Skeleton className="h-8 w-24" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        
+        {/* Filters skeleton */}
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-6 w-32" />
+          <Skeleton className="h-9 w-20" />
+        </div>
+        
+        {/* Transactions list skeleton */}
+        <Card className="flex flex-col">
+          <div className="divide-y">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="flex justify-between items-center p-4">
+                <div className="flex items-center gap-4">
+                  <Skeleton className="w-3 h-3 rounded-full" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-48" />
+                  </div>
+                </div>
+                <Skeleton className="h-5 w-20" />
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -465,7 +545,20 @@ export default function TransactionsPage() {
       {/* Transactions list */}
       <Card className="flex flex-col">
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Loading transactions...</div>
+          <div className="divide-y">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="flex justify-between items-center p-4">
+                <div className="flex items-center gap-4">
+                  <Skeleton className="w-3 h-3 rounded-full" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-48" />
+                  </div>
+                </div>
+                <Skeleton className="h-5 w-20" />
+              </div>
+            ))}
+          </div>
         ) : error ? (
           <div className="text-center py-8 text-red-500">Error: {error}</div>
         ) : (

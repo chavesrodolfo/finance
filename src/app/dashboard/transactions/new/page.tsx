@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -145,6 +146,61 @@ export default function NewTransactionPage() {
       setIsSubmitting(false);
     }
   };
+
+  if (isLoadingCategories) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <Skeleton className="h-9 w-64 mb-6" />
+        
+        <Card className="p-6">
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Date field skeleton */}
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-12" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              
+              {/* Amount field skeleton */}
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              
+              {/* Transaction Type skeleton */}
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              
+              {/* Category skeleton */}
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              
+              {/* Description skeleton */}
+              <div className="space-y-2 md:col-span-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              
+              {/* Additional Details skeleton */}
+              <div className="space-y-2 md:col-span-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-24 w-full" />
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-4">
+              <Skeleton className="h-10 w-20" />
+              <Skeleton className="h-10 w-32" />
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto">

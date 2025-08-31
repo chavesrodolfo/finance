@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Edit } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -84,10 +85,104 @@ export default function BudgetPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Budget</h1>
+          <Skeleton className="h-9 w-32" />
+          <Skeleton className="h-10 w-24" />
         </div>
-        <div className="text-center py-8">
-          <div className="text-muted-foreground">Loading budget...</div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="md:col-span-2">
+            <CardHeader className="flex flex-row items-center justify-between py-4">
+              <Skeleton className="h-6 w-36" />
+              <Skeleton className="h-4 w-16" />
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[300px]"><Skeleton className="h-4 w-12" /></TableHead>
+                    <TableHead><Skeleton className="h-4 w-16" /></TableHead>
+                    <TableHead className="text-right"><Skeleton className="h-4 w-16" /></TableHead>
+                    <TableHead className="w-[100px] text-right"><Skeleton className="h-4 w-12" /></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[...Array(6)].map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                      <TableCell className="text-right"><Skeleton className="h-4 w-16" /></TableCell>
+                      <TableCell className="text-right"><Skeleton className="h-8 w-8" /></TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="bg-muted/50">
+                    <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                    <TableCell></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-20" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <Skeleton className="h-5 w-40 mb-3" />
+                  <Skeleton className="h-9 w-32" />
+                </div>
+                
+                <div className="pt-4 border-t">
+                  <Skeleton className="h-5 w-24 mb-4" />
+                  <div className="space-y-4">
+                    {[...Array(5)].map((_, i) => {
+                      const widths = [80, 65, 45, 30, 25]; // Deterministic widths
+                      return (
+                        <div key={i} className="group">
+                          <div className="flex justify-between text-sm mb-1">
+                            <Skeleton className="h-4 w-20" />
+                            <Skeleton className="h-4 w-10" />
+                          </div>
+                          <div className="flex items-center">
+                            <div className="w-full h-6 bg-muted rounded-md overflow-hidden">
+                              <Skeleton 
+                                className="h-full rounded-md" 
+                                style={{ width: `${widths[i]}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                
+                <div className="pt-4 border-t">
+                  <Skeleton className="h-5 w-32 mb-2" />
+                  <Skeleton className="h-12 w-full mb-4" />
+                  <Skeleton className="h-4 w-full rounded-full mb-4" />
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    {[...Array(8)].map((_, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Skeleton className="w-3 h-3 rounded-full" />
+                        <Skeleton className="h-3 w-16" />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-border">
+                    <Skeleton className="h-4 w-20 mb-1" />
+                    <Skeleton className="h-6 w-6" />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );

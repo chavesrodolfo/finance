@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlusCircle, Edit, Trash2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Initial data
 const initialTypes = [
@@ -74,10 +75,21 @@ const initialDescriptions = [
 ];
 
 export default function SettingsPage() {
+  const [loading, setLoading] = useState(true);
+  
   // State for each configuration type
   const [types, setTypes] = useState(initialTypes);
   const [categories, setCategories] = useState(initialCategories);
   const [descriptions, setDescriptions] = useState(initialDescriptions);
+
+  // Simulate loading (since this page uses static data)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, []);
   
   // New item states
   const [newType, setNewType] = useState("");
@@ -135,6 +147,47 @@ export default function SettingsPage() {
     setEditingItem(null);
   };
   
+  if (loading) {
+    return (
+      <div className="max-w-5xl mx-auto">
+        <Skeleton className="h-9 w-32 mb-6" />
+        
+        <div className="w-full">
+          <div className="grid grid-cols-3 mb-6">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+          
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-40 mb-2" />
+              <Skeleton className="h-4 w-80" />
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-4 mb-6">
+                <Skeleton className="h-10 flex-1" />
+                <Skeleton className="h-10 w-32" />
+              </div>
+              
+              <div className="space-y-2">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 border rounded-md">
+                    <Skeleton className="h-4 w-32" />
+                    <div className="flex gap-2">
+                      <Skeleton className="h-8 w-8" />
+                      <Skeleton className="h-8 w-8" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-5xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Settings</h1>
