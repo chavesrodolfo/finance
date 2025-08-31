@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
-import { ChevronLeft, ChevronRight, Plus, Filter, Upload, Download, FileText, Info } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Filter, Upload, Download, FileText } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/utils";
 
 interface Transaction {
   id: string;
@@ -404,21 +405,6 @@ export default function TransactionsPage() {
         </div>
       )}
 
-      {/* CSV Import/Export Info */}
-      <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-        <div className="flex items-start gap-3">
-          <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-          <div className="text-sm">
-            <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-1">CSV Import/Export</h4>
-            <p className="text-blue-700 dark:text-blue-300 mb-2">
-              Use CSV files to bulk import or export your transactions. Download the template to see the required format.
-            </p>
-            <div className="text-blue-600 dark:text-blue-400">
-              <strong>Required columns:</strong> Date (YYYY-MM-DD), Description, Amount (negative for expenses), Type (EXPENSE/INCOME/EXPENSE_SAVINGS/RETURN), Category
-            </div>
-          </div>
-        </div>
-      </div>
       
       {/* Month controller */}
       <Card>
@@ -441,7 +427,7 @@ export default function TransactionsPage() {
           <CardContent className="p-6">
             <div className="flex flex-col">
               <span className="text-sm text-muted-foreground">Income</span>
-              <span className="text-2xl font-bold text-emerald-500">+${totalIncome.toFixed(2)}</span>
+              <span className="text-2xl font-bold text-emerald-500">+{formatCurrency(totalIncome)}</span>
             </div>
           </CardContent>
         </Card>
@@ -450,7 +436,7 @@ export default function TransactionsPage() {
           <CardContent className="p-6">
             <div className="flex flex-col">
               <span className="text-sm text-muted-foreground">Expenses</span>
-              <span className="text-2xl font-bold text-rose-500">-${totalExpenses.toFixed(2)}</span>
+              <span className="text-2xl font-bold text-rose-500">-{formatCurrency(totalExpenses)}</span>
             </div>
           </CardContent>
         </Card>
@@ -460,7 +446,7 @@ export default function TransactionsPage() {
             <div className="flex flex-col">
               <span className="text-sm text-muted-foreground">Balance</span>
               <span className={`text-2xl font-bold ${balance >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                {balance >= 0 ? '+' : '-'}${Math.abs(balance).toFixed(2)}
+                {balance >= 0 ? '+' : '-'}{formatCurrency(Math.abs(balance))}
               </span>
             </div>
           </CardContent>
@@ -483,7 +469,7 @@ export default function TransactionsPage() {
         ) : error ? (
           <div className="text-center py-8 text-red-500">Error: {error}</div>
         ) : (
-          <div className="max-h-[600px] overflow-y-auto">
+          <div>
             {filteredTransactions.length > 0 ? (
               <div className="divide-y">
                 {filteredTransactions
@@ -515,7 +501,7 @@ export default function TransactionsPage() {
                             : 'text-rose-500'
                         }`}
                       >
-                        {transaction.type === 'INCOME' ? '+' : '-'}${Math.abs(transaction.amount).toFixed(2)}
+                        {transaction.type === 'INCOME' ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount))}
                       </div>
                     </div>
                   ))}
