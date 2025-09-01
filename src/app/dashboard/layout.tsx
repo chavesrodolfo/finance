@@ -42,9 +42,9 @@ export default function DashboardLayout({
   };
 
   // Helper to check if a parent item should be expanded (has active child)
-  const hasActiveChild = (item: any) => {
+  const hasActiveChild = (item: { children?: { href: string }[] }) => {
     if (!item.children) return false;
-    return item.children.some((child: any) => pathname === child.href);
+    return item.children.some((child: { href: string }) => pathname === child.href);
   };
 
   return (
@@ -102,7 +102,7 @@ export default function DashboardLayout({
                   {/* Render children if they exist and sidebar is open */}
                   {item.children && sidebarOpen && (
                     <div className="ml-6 mt-1 space-y-1">
-                      {item.children.map((child: any) => (
+                      {item.children.map((child: { name: string; href: string; icon: React.ReactNode }) => (
                         <Link 
                           key={child.href}
                           href={child.href}

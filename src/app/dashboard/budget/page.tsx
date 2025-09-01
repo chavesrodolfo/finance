@@ -34,7 +34,7 @@ export default function BudgetPage() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<BudgetItem | null>(null);
-  const { toast } = useToast();
+  // const { toast } = useToast();
 
   const fetchBudgetItems = async () => {
     try {
@@ -70,7 +70,7 @@ export default function BudgetPage() {
     .slice(0, 5);
 
   // Calculate percentages for top expenses
-  const maxAmount = Math.max(...topExpenses.map(item => item.amount), 1);
+  // const maxAmount = Math.max(...topExpenses.map(item => item.amount), 1);
 
   const handleEditItem = (item: BudgetItem) => {
     setSelectedItem(item);
