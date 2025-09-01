@@ -40,16 +40,30 @@ export async function GET() {
     });
 
   } catch (error) {
-    console.error('Error fetching exchange rates:', error);
+    console.error('Error fetching exchange rates from primary API:', error);
     
-    // Return fallback rates if API fails
-    return NextResponse.json({
-      success: true,
-      rates: FALLBACK_RATES,
-      lastUpdated: new Date().toISOString().split('T')[0],
-      source: 'fallback',
-      error: 'Using fallback rates due to API error'
-    });
+    // Try alternative API as backup
+    try {
+      const alternativeRates = await fetchAlternativeRates();
+      
+      return NextResponse.json({
+        success: true,
+        rates: alternativeRates,
+        lastUpdated: new Date().toISOString().split('T')[0],
+        source: 'alternative'
+      });
+    } catch (alternativeError) {
+      console.error('Alternative API also failed:', alternativeError);
+      
+      // Return fallback rates if both APIs fail
+      return NextResponse.json({
+        success: true,
+        rates: FALLBACK_RATES,
+        lastUpdated: new Date().toISOString().split('T')[0],
+        source: 'fallback',
+        error: 'Using fallback rates due to API errors'
+      });
+    }
   }
 }
 
