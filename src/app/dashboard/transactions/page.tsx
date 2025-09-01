@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
-import { ChevronLeft, ChevronRight, Plus, Filter, Upload, Download, FileText } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Filter, Upload } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
+import { TransactionActions } from "@/components/transactions/actions-dropdown";
 
 interface Transaction {
   id: string;
@@ -482,29 +483,22 @@ export default function TransactionsPage() {
             className="hidden"
             ref={fileInputRef}
           />
-          <Button 
-            variant="outline" 
-            className="flex items-center gap-2" 
-            disabled={uploading}
-            onClick={handleButtonClick}
-          >
-            <Upload className="h-4 w-4" />
-            {uploading ? (importPhase === 'uploading' ? 'Processing...' : 'Importing...') : 'Import CSV'}
-          </Button>
-          <Button variant="outline" onClick={handleDownloadTemplate} className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Template
-          </Button>
-          <Button variant="outline" onClick={handleExportCSV} className="flex items-center gap-2">
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
-          <Link href="/dashboard/transactions/new">
-            <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              New Transaction
+          {uploading ? (
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2" 
+              disabled={true}
+            >
+              <Upload className="h-4 w-4" />
+              {importPhase === 'uploading' ? 'Processing...' : 'Importing...'}
             </Button>
-          </Link>
+          ) : (
+            <TransactionActions 
+              onImportCSV={handleButtonClick}
+              onExportCSV={handleExportCSV}
+              onDownloadTemplate={handleDownloadTemplate}
+            />
+          )}
         </div>
       </div>
       
