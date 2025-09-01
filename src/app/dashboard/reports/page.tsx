@@ -3,10 +3,13 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReportsSkeleton } from "@/components/dashboard/skeletons";
 import { formatCurrency } from "@/lib/utils";
+import { ChevronDown, X } from "lucide-react";
 
 interface ExpenseData {
   category: string;
@@ -26,6 +29,11 @@ interface YearlyData {
 
 export default function ReportsPage() {
   const [timeRange, setTimeRange] = useState("monthly");
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedDescriptions, setSelectedDescriptions] = useState<string[]>([]);
+  const [pendingCategories, setPendingCategories] = useState<string[]>([]);
+  const [pendingDescriptions, setPendingDescriptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [expensesByCategory, setExpensesByCategory] = useState<ExpenseData[]>([]);
   const [expensesByPeriod, setExpensesByPeriod] = useState<MonthlyData[] | YearlyData[]>([]);
@@ -35,7 +43,13 @@ export default function ReportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [allCategories, setAllCategories] = useState<string[]>([]);
+  const [allDescriptions, setAllDescriptions] = useState<string[]>([]);
+  
+  // Multi-select dropdown states
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const [descriptionDropdownOpen, setDescriptionDropdownOpen] = useState(false);
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -46,14 +60,54 @@ export default function ReportsPage() {
         if (!response.ok) throw new Error("Failed to fetch transactions");
         const data = await response.json();
         
+        // Extract available years, categories, and descriptions from all transaction data
+        const yearsSet = new Set<number>();
+        const categoriesSet = new Set<string>();
+        const descriptionsSet = new Set<string>();
+        
+        data.forEach((t: { date: string; category?: { name: string }; description: string }) => {
+          const year = new Date(t.date).getFullYear();
+          yearsSet.add(year);
+          
+          const categoryName = t.category?.name || "Uncategorized";
+          const description = t.description || "No Description";
+          categoriesSet.add(categoryName);
+          descriptionsSet.add(description);
+        });
+        
+        const sortedYears = Array.from(yearsSet).sort((a, b) => b - a); // Most recent first
+        const sortedCategories = Array.from(categoriesSet).sort();
+        const sortedDescriptions = Array.from(descriptionsSet).sort();
+        
+        setAvailableYears(sortedYears);
+        setAllCategories(sortedCategories);
+        setAllDescriptions(sortedDescriptions);
+        
+        // Initialize selections if empty
+        if (selectedCategories.length === 0 && sortedCategories.length > 0) {
+          setSelectedCategories(sortedCategories);
+          setPendingCategories(sortedCategories);
+        }
+        if (selectedDescriptions.length === 0 && sortedDescriptions.length > 0) {
+          setSelectedDescriptions(sortedDescriptions);
+          setPendingDescriptions(sortedDescriptions);
+        }
+        
+        // If selected year doesn't have data, default to the most recent year with data
+        if (sortedYears.length > 0 && !sortedYears.includes(selectedYear)) {
+          setSelectedYear(sortedYears[0]);
+          return; // Will re-trigger useEffect with new selectedYear
+        }
+        
         // Filter data based on time range
         let now = new Date();
         let filterStartDate: Date;
         
         switch (timeRange) {
           case "monthly":
-            // Current year for monthly grouping
-            filterStartDate = new Date(now.getFullYear(), 0, 1);
+            // Selected year for monthly grouping
+            filterStartDate = new Date(selectedYear, 0, 1);
+            now = new Date(selectedYear, 11, 31, 23, 59, 59);
             break;
           case "yearly":
             // Last 5 years for yearly grouping
@@ -73,9 +127,20 @@ export default function ReportsPage() {
         }
 
         // Filter transactions by date range
-        const filteredData = data.filter((t: { date: string }) => {
+        let filteredData = data.filter((t: { date: string }) => {
           const transactionDate = new Date(t.date);
           return transactionDate >= filterStartDate && transactionDate <= now;
+        });
+
+        // Filter by selected categories and descriptions
+        filteredData = filteredData.filter((t: { category?: { name: string }; description: string }) => {
+          const categoryName = t.category?.name || "Uncategorized";
+          const description = t.description || "No Description";
+          
+          const categoryMatch = selectedCategories.length === 0 || selectedCategories.includes(categoryName);
+          const descriptionMatch = selectedDescriptions.length === 0 || selectedDescriptions.includes(description);
+          
+          return categoryMatch && descriptionMatch;
         });
 
         // Process analytics with filtered data
@@ -87,10 +152,10 @@ export default function ReportsPage() {
           const monthlyMap: { [key: string]: number } = {};
           const categoryByMonthMap: { [month: string]: { [category: string]: number } } = {};
           
-          expenses.forEach((t: { amount: number; date: string; category?: { name: string } }) => {
+          expenses.forEach((t: { amount: number; date: string; category?: { name: string }; description: string }) => {
             const date = new Date(t.date);
             const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-            const cat = t.category?.name || "Uncategorized";
+            const categoryName = t.category?.name || "Uncategorized";
             const amount = Math.abs(t.amount);
             
             // Total by month
@@ -98,7 +163,7 @@ export default function ReportsPage() {
             
             // Category by month
             if (!categoryByMonthMap[monthKey]) categoryByMonthMap[monthKey] = {};
-            categoryByMonthMap[monthKey][cat] = (categoryByMonthMap[monthKey][cat] || 0) + amount;
+            categoryByMonthMap[monthKey][categoryName] = (categoryByMonthMap[monthKey][categoryName] || 0) + amount;
           });
           
           const monthlyData = Object.entries(monthlyMap).map(([month, amount]) => ({ month, amount }));
@@ -119,9 +184,9 @@ export default function ReportsPage() {
           
           // Overall category totals for reference
           const categoryMap: { [key: string]: number } = {};
-          expenses.forEach((t: { amount: number; category?: { name: string } }) => {
-            const cat = t.category?.name || "Uncategorized";
-            categoryMap[cat] = (categoryMap[cat] || 0) + Math.abs(t.amount);
+          expenses.forEach((t: { amount: number; category?: { name: string }; description: string }) => {
+            const categoryName = t.category?.name || "Uncategorized";
+            categoryMap[categoryName] = (categoryMap[categoryName] || 0) + Math.abs(t.amount);
           });
           const categories = Object.entries(categoryMap).map(([category, amount]) => ({
             category,
@@ -136,10 +201,10 @@ export default function ReportsPage() {
           const yearlyMap: { [key: string]: number } = {};
           const categoryByYearMap: { [year: string]: { [category: string]: number } } = {};
           
-          expenses.forEach((t: { amount: number; date: string; category?: { name: string } }) => {
+          expenses.forEach((t: { amount: number; date: string; category?: { name: string }; description: string }) => {
             const date = new Date(t.date);
             const year = date.getFullYear().toString();
-            const cat = t.category?.name || "Uncategorized";
+            const categoryName = t.category?.name || "Uncategorized";
             const amount = Math.abs(t.amount);
             
             // Total by year
@@ -147,7 +212,7 @@ export default function ReportsPage() {
             
             // Category by year
             if (!categoryByYearMap[year]) categoryByYearMap[year] = {};
-            categoryByYearMap[year][cat] = (categoryByYearMap[year][cat] || 0) + amount;
+            categoryByYearMap[year][categoryName] = (categoryByYearMap[year][categoryName] || 0) + amount;
           });
           
           const yearlyData = Object.entries(yearlyMap).map(([year, amount]) => ({ year, amount }));
@@ -168,9 +233,9 @@ export default function ReportsPage() {
           
           // Overall category totals for reference
           const categoryMap: { [key: string]: number } = {};
-          expenses.forEach((t: { amount: number; category?: { name: string } }) => {
-            const cat = t.category?.name || "Uncategorized";
-            categoryMap[cat] = (categoryMap[cat] || 0) + Math.abs(t.amount);
+          expenses.forEach((t: { amount: number; category?: { name: string }; description: string }) => {
+            const categoryName = t.category?.name || "Uncategorized";
+            categoryMap[categoryName] = (categoryMap[categoryName] || 0) + Math.abs(t.amount);
           });
           const categories = Object.entries(categoryMap).map(([category, amount]) => ({
             category,
@@ -183,9 +248,9 @@ export default function ReportsPage() {
         } else {
           // For custom range, use overall category data
           const categoryMap: { [key: string]: number } = {};
-          expenses.forEach((t: { amount: number; category?: { name: string } }) => {
-            const cat = t.category?.name || "Uncategorized";
-            categoryMap[cat] = (categoryMap[cat] || 0) + Math.abs(t.amount);
+          expenses.forEach((t: { amount: number; category?: { name: string }; description: string }) => {
+            const categoryName = t.category?.name || "Uncategorized";
+            categoryMap[categoryName] = (categoryMap[categoryName] || 0) + Math.abs(t.amount);
           });
           const categories = Object.entries(categoryMap).map(([category, amount]) => ({
             category,
@@ -205,7 +270,18 @@ export default function ReportsPage() {
       }
     };
     fetchTransactions();
-  }, [timeRange, startDate, endDate]); // Add custom date dependencies
+  }, [timeRange, selectedYear, selectedCategories, selectedDescriptions, startDate, endDate]);
+
+  // Function to apply pending selections
+  const applyFilters = () => {
+    setSelectedCategories(pendingCategories);
+    setSelectedDescriptions(pendingDescriptions);
+  };
+
+  // Check if there are pending changes
+  const hasPendingChanges = 
+    JSON.stringify(selectedCategories.sort()) !== JSON.stringify(pendingCategories.sort()) ||
+    JSON.stringify(selectedDescriptions.sort()) !== JSON.stringify(pendingDescriptions.sort());
 
   // Calculate the total amount and max for charts
   const totalAmount = timeRange === 'custom' 
@@ -247,107 +323,7 @@ export default function ReportsPage() {
       </div>
 
       {loading ? (
-        <div>
-          <div className="flex flex-col gap-4 mb-6">
-            <div className="flex gap-2">
-              <Skeleton className="h-9 w-20" />
-              <Skeleton className="h-9 w-16" />
-              <Skeleton className="h-9 w-18" />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-            <Card className="md:col-span-2 bg-card text-card-foreground border">
-              <CardHeader>
-                <CardTitle>
-                  <Skeleton className="h-6 w-40" />
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-96 w-full relative">
-                  <div className="h-full w-full flex">
-                    <div className="flex flex-col justify-between text-xs text-muted-foreground pr-2" style={{ height: "320px", paddingBottom: "64px" }}>
-                      <Skeleton className="h-4 w-16" />
-                      <Skeleton className="h-4 w-16" />
-                      <Skeleton className="h-4 w-16" />
-                      <Skeleton className="h-4 w-16" />
-                      <Skeleton className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1 relative">
-                      <div className="flex items-end relative" style={{ height: "320px", justifyContent: "space-around" }}>
-                        <div className="absolute bottom-16 left-0 right-0 h-px bg-border"></div>
-                        {[...Array(8)].map((_, i) => {
-                          // Deterministic heights for each bar to avoid hydration mismatch
-                          const heights = [180, 120, 200, 90, 160, 140, 220, 100];
-                          return (
-                            <div key={i} className="flex flex-col items-center" style={{ height: "320px", justifyContent: "flex-end" }}>
-                              <Skeleton className="h-4 w-16 mb-1" />
-                              <Skeleton className="w-9 mb-2" style={{ height: `${heights[i]}px` }} />
-                              <div className="h-16 flex flex-col items-center justify-start shrink-0">
-                                <Skeleton className="h-3 w-12 mt-2" />
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {/* Stats skeleton */}
-                <div className="grid grid-cols-4 gap-4 border-t border-border">
-                  <div className="flex flex-col items-center">
-                    <Skeleton className="h-3 w-20 mb-1" />
-                    <Skeleton className="h-8 w-24" />
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <Skeleton className="h-3 w-24 mb-1" />
-                    <Skeleton className="h-6 w-20" />
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <Skeleton className="h-3 w-16 mb-1" />
-                    <Skeleton className="h-5 w-16" />
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <Skeleton className="h-3 w-12 mb-1" />
-                    <Skeleton className="h-6 w-8" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-card text-card-foreground border">
-              <CardHeader>
-                <CardTitle><Skeleton className="h-6 w-32" /></CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6 max-h-96 overflow-y-auto">
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className="border rounded-lg p-3">
-                      <div className="flex justify-between items-center mb-3">
-                        <Skeleton className="h-4 w-16" />
-                        <Skeleton className="h-4 w-20" />
-                      </div>
-                      
-                      <Skeleton className="h-3 w-full rounded-full mb-3" />
-                      
-                      <div className="space-y-1">
-                        {[...Array(5)].map((_, j) => (
-                          <div key={j} className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Skeleton className="w-2 h-2 rounded-full" />
-                              <Skeleton className="h-3 w-16" />
-                            </div>
-                            <Skeleton className="h-3 w-12" />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+        <ReportsSkeleton />
       ) : error ? (
         <div className="text-center py-12">
           <div className="mb-4">
@@ -362,28 +338,253 @@ export default function ReportsPage() {
       ) : !hasData ? (
         <div>
           <div className="flex flex-col gap-4 mb-6">
-            <div className="flex gap-2">
-              <Button
-                variant={timeRange === "monthly" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTimeRange("monthly")}
-              >
-                Monthly
-              </Button>
-              <Button
-                variant={timeRange === "yearly" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTimeRange("yearly")}
-              >
-                Yearly
-              </Button>
-              <Button
-                variant={timeRange === "custom" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTimeRange("custom")}
-              >
-                Custom
-              </Button>
+            <div className="flex gap-4 items-center flex-wrap">
+              <div className="flex gap-2">
+                <Button
+                  variant={timeRange === "monthly" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTimeRange("monthly")}
+                >
+                  Monthly
+                </Button>
+                <Button
+                  variant={timeRange === "yearly" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTimeRange("yearly")}
+                >
+                  Yearly
+                </Button>
+                <Button
+                  variant={timeRange === "custom" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTimeRange("custom")}
+                >
+                  Custom
+                </Button>
+              </div>
+              
+              {/* Year Selector for Monthly Reports */}
+              {timeRange === "monthly" && availableYears.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="year-selector-no-data" className="text-sm font-medium whitespace-nowrap">
+                    Year:
+                  </Label>
+                  <Select value={selectedYear.toString()} onValueChange={(year) => setSelectedYear(parseInt(year))}>
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableYears.map((year) => (
+                        <SelectItem key={year} value={year.toString()}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
+              {/* Category Multi-Select */}
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium whitespace-nowrap">
+                  Categories:
+                </Label>
+                <div className="relative">
+                  <button 
+                    className="flex h-10 w-60 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
+                  >
+                    <span className="truncate">
+                      {selectedCategories.length === 0 
+                        ? "Select categories..."
+                        : selectedCategories.length === allCategories.length
+                        ? "All categories"
+                        : `${selectedCategories.length} categories selected`
+                      }
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </button>
+                  
+                  {categoryDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-1 w-60 bg-popover border rounded-md shadow-md z-50 p-3">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium">Categories</label>
+                          <div className="flex gap-1">
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 px-2 text-xs"
+                              onClick={() => setPendingCategories(allCategories)}
+                            >
+                              All
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 px-2 text-xs"
+                              onClick={() => setPendingCategories([])}
+                            >
+                              None
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 px-2 text-xs"
+                              onClick={() => setCategoryDropdownOpen(false)}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="max-h-48 overflow-y-auto space-y-1">
+                          {allCategories.map((category) => (
+                            <div
+                              key={category}
+                              className="flex items-center space-x-2 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded px-2 py-1"
+                              onClick={() => {
+                                const isSelected = pendingCategories.includes(category);
+                                if (isSelected) {
+                                  setPendingCategories(pendingCategories.filter(c => c !== category));
+                                } else {
+                                  setPendingCategories([...pendingCategories, category]);
+                                }
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={pendingCategories.includes(category)}
+                                readOnly
+                                className="h-4 w-4"
+                              />
+                              <span className="text-sm truncate flex-1">{category}</span>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {hasPendingChanges && (
+                          <div className="flex gap-2 pt-2 border-t">
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-4 flex-1"
+                              onClick={() => {
+                                applyFilters();
+                                setCategoryDropdownOpen(false);
+                              }}
+                            >
+                              Apply
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 px-4 flex-1"
+                              onClick={() => {
+                                setPendingCategories(selectedCategories);
+                                setPendingDescriptions(selectedDescriptions);
+                              }}
+                            >
+                              Reset
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Description Multi-Select */}
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium whitespace-nowrap">
+                  Descriptions:
+                </Label>
+                <div className="relative">
+                  <button 
+                    className="flex h-10 w-60 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => setDescriptionDropdownOpen(!descriptionDropdownOpen)}
+                  >
+                    <span className="truncate">
+                      {selectedDescriptions.length === 0 
+                        ? "Select descriptions..."
+                        : selectedDescriptions.length === allDescriptions.length
+                        ? "All descriptions"
+                        : `${selectedDescriptions.length} descriptions selected`
+                      }
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </button>
+                  
+                  {descriptionDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-1 w-60 bg-popover border rounded-md shadow-md z-50 p-3">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium">Descriptions</label>
+                          <div className="flex gap-1">
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 px-2 text-xs"
+                              onClick={() => setPendingDescriptions(allDescriptions)}
+                            >
+                              All
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 px-2 text-xs"
+                              onClick={() => setPendingDescriptions([])}
+                            >
+                              None
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 px-2 text-xs"
+                              onClick={() => setDescriptionDropdownOpen(false)}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="max-h-48 overflow-y-auto space-y-1">
+                          {allDescriptions.map((description) => (
+                            <div
+                              key={description}
+                              className="flex items-center space-x-2 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded px-2 py-1"
+                              onClick={() => {
+                                const isSelected = pendingDescriptions.includes(description);
+                                if (isSelected) {
+                                  setPendingDescriptions(pendingDescriptions.filter(d => d !== description));
+                                } else {
+                                  setPendingDescriptions([...pendingDescriptions, description]);
+                                }
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={pendingDescriptions.includes(description)}
+                                readOnly
+                                className="h-4 w-4"
+                              />
+                              <span className="text-sm truncate flex-1">{description}</span>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {hasPendingChanges && (
+                          <div className="flex gap-2 pt-2 border-t">
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-4 flex-1"
+                              onClick={() => {
+                                applyFilters();
+                                setDescriptionDropdownOpen(false);
+                              }}
+                            >
+                              Apply
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 px-4 flex-1"
+                              onClick={() => {
+                                setPendingCategories(selectedCategories);
+                                setPendingDescriptions(selectedDescriptions);
+                              }}
+                            >
+                              Reset
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
             
             {/* Custom Date Range Fields */}
@@ -433,28 +634,253 @@ export default function ReportsPage() {
       ) : (
         <div>
           <div className="flex flex-col gap-4 mb-6">
-            <div className="flex gap-2">
-              <Button
-                variant={timeRange === "monthly" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTimeRange("monthly")}
-              >
-                Monthly
-              </Button>
-              <Button
-                variant={timeRange === "yearly" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTimeRange("yearly")}
-              >
-                Yearly
-              </Button>
-              <Button
-                variant={timeRange === "custom" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTimeRange("custom")}
-              >
-                Custom
-              </Button>
+            <div className="flex gap-4 items-center flex-wrap">
+              <div className="flex gap-2">
+                <Button
+                  variant={timeRange === "monthly" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTimeRange("monthly")}
+                >
+                  Monthly
+                </Button>
+                <Button
+                  variant={timeRange === "yearly" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTimeRange("yearly")}
+                >
+                  Yearly
+                </Button>
+                <Button
+                  variant={timeRange === "custom" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTimeRange("custom")}
+                >
+                  Custom
+                </Button>
+              </div>
+              
+              {/* Year Selector for Monthly Reports */}
+              {timeRange === "monthly" && availableYears.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="year-selector" className="text-sm font-medium whitespace-nowrap">
+                    Year:
+                  </Label>
+                  <Select value={selectedYear.toString()} onValueChange={(year) => setSelectedYear(parseInt(year))}>
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableYears.map((year) => (
+                        <SelectItem key={year} value={year.toString()}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
+              {/* Category Multi-Select */}
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium whitespace-nowrap">
+                  Categories:
+                </Label>
+                <div className="relative">
+                  <button 
+                    className="flex h-10 w-60 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
+                  >
+                    <span className="truncate">
+                      {selectedCategories.length === 0 
+                        ? "Select categories..."
+                        : selectedCategories.length === allCategories.length
+                        ? "All categories"
+                        : `${selectedCategories.length} categories selected`
+                      }
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </button>
+                  
+                  {categoryDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-1 w-60 bg-popover border rounded-md shadow-md z-50 p-3">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium">Categories</label>
+                          <div className="flex gap-1">
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 px-2 text-xs"
+                              onClick={() => setPendingCategories(allCategories)}
+                            >
+                              All
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 px-2 text-xs"
+                              onClick={() => setPendingCategories([])}
+                            >
+                              None
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 px-2 text-xs"
+                              onClick={() => setCategoryDropdownOpen(false)}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="max-h-48 overflow-y-auto space-y-1">
+                          {allCategories.map((category) => (
+                            <div
+                              key={category}
+                              className="flex items-center space-x-2 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded px-2 py-1"
+                              onClick={() => {
+                                const isSelected = pendingCategories.includes(category);
+                                if (isSelected) {
+                                  setPendingCategories(pendingCategories.filter(c => c !== category));
+                                } else {
+                                  setPendingCategories([...pendingCategories, category]);
+                                }
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={pendingCategories.includes(category)}
+                                readOnly
+                                className="h-4 w-4"
+                              />
+                              <span className="text-sm truncate flex-1">{category}</span>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {hasPendingChanges && (
+                          <div className="flex gap-2 pt-2 border-t">
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-4 flex-1"
+                              onClick={() => {
+                                applyFilters();
+                                setCategoryDropdownOpen(false);
+                              }}
+                            >
+                              Apply
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 px-4 flex-1"
+                              onClick={() => {
+                                setPendingCategories(selectedCategories);
+                                setPendingDescriptions(selectedDescriptions);
+                              }}
+                            >
+                              Reset
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Description Multi-Select */}
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium whitespace-nowrap">
+                  Descriptions:
+                </Label>
+                <div className="relative">
+                  <button 
+                    className="flex h-10 w-60 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => setDescriptionDropdownOpen(!descriptionDropdownOpen)}
+                  >
+                    <span className="truncate">
+                      {selectedDescriptions.length === 0 
+                        ? "Select descriptions..."
+                        : selectedDescriptions.length === allDescriptions.length
+                        ? "All descriptions"
+                        : `${selectedDescriptions.length} descriptions selected`
+                      }
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </button>
+                  
+                  {descriptionDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-1 w-60 bg-popover border rounded-md shadow-md z-50 p-3">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium">Descriptions</label>
+                          <div className="flex gap-1">
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 px-2 text-xs"
+                              onClick={() => setPendingDescriptions(allDescriptions)}
+                            >
+                              All
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 px-2 text-xs"
+                              onClick={() => setPendingDescriptions([])}
+                            >
+                              None
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 px-2 text-xs"
+                              onClick={() => setDescriptionDropdownOpen(false)}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="max-h-48 overflow-y-auto space-y-1">
+                          {allDescriptions.map((description) => (
+                            <div
+                              key={description}
+                              className="flex items-center space-x-2 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded px-2 py-1"
+                              onClick={() => {
+                                const isSelected = pendingDescriptions.includes(description);
+                                if (isSelected) {
+                                  setPendingDescriptions(pendingDescriptions.filter(d => d !== description));
+                                } else {
+                                  setPendingDescriptions([...pendingDescriptions, description]);
+                                }
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={pendingDescriptions.includes(description)}
+                                readOnly
+                                className="h-4 w-4"
+                              />
+                              <span className="text-sm truncate flex-1">{description}</span>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {hasPendingChanges && (
+                          <div className="flex gap-2 pt-2 border-t">
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-4 flex-1"
+                              onClick={() => {
+                                applyFilters();
+                                setDescriptionDropdownOpen(false);
+                              }}
+                            >
+                              Apply
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 px-4 flex-1"
+                              onClick={() => {
+                                setPendingCategories(selectedCategories);
+                                setPendingDescriptions(selectedDescriptions);
+                              }}
+                            >
+                              Reset
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
             
             {/* Custom Date Range Fields */}
@@ -663,7 +1089,7 @@ export default function ReportsPage() {
                       <div>
                         <h4 className="text-sm font-medium mb-3">Overall Distribution</h4>
                         <p className="text-xs text-muted-foreground mb-4">
-                          Visual breakdown showing how your expenses are distributed across different categories for the selected period.
+                          Visual breakdown showing how your expenses are distributed across the selected categories and descriptions for the selected period.
                         </p>
                         <div className="h-4 w-full bg-muted rounded-full overflow-hidden mb-4">
                           {(expensesByCategory || []).map((item, index) => {
