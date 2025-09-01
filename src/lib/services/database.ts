@@ -180,4 +180,82 @@ export async function getUserDescriptions(userId: string) {
   })
 }
 
+export async function getUserInvestmentAccounts(userId: string) {
+  return await prisma.investmentAccount.findMany({
+    where: { userId },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  })
+}
+
+export async function createInvestmentAccount(data: {
+  name: string
+  accountType: string
+  currentValue: number
+  currency?: string
+  monthlyReturnPercent?: number
+  annualReturnPercent?: number
+  userId: string
+}) {
+  return await prisma.investmentAccount.create({
+    data: {
+      ...data,
+      currency: data.currency || 'CAD',
+      monthlyReturnPercent: data.monthlyReturnPercent || 0,
+      annualReturnPercent: data.annualReturnPercent || 0
+    }
+  })
+}
+
+export async function updateInvestmentAccount(
+  accountId: string,
+  userId: string,
+  data: {
+    name?: string
+    accountType?: string
+    currentValue?: number
+    currency?: string
+    monthlyReturnPercent?: number
+    annualReturnPercent?: number
+  }
+) {
+  // First verify the account belongs to the user
+  const existingAccount = await prisma.investmentAccount.findFirst({
+    where: {
+      id: accountId,
+      userId: userId
+    }
+  })
+
+  if (!existingAccount) {
+    return null
+  }
+
+  return await prisma.investmentAccount.update({
+    where: { id: accountId },
+    data
+  })
+}
+
+export async function deleteInvestmentAccount(accountId: string, userId: string) {
+  // First verify the account belongs to the user
+  const existingAccount = await prisma.investmentAccount.findFirst({
+    where: {
+      id: accountId,
+      userId: userId
+    }
+  })
+
+  if (!existingAccount) {
+    return false
+  }
+
+  await prisma.investmentAccount.delete({
+    where: { id: accountId }
+  })
+
+  return true
+}
+
 

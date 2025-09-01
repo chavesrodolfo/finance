@@ -65,6 +65,13 @@ export async function DELETE(request: NextRequest) {
         deletedCount = descriptionResult.count
         break
 
+      case 'investment-accounts':
+        const investmentAccountResult = await prisma.investmentAccount.deleteMany({
+          where: { userId: dbUser.id }
+        })
+        deletedCount = investmentAccountResult.count
+        break
+
       case 'all':
         // Delete in order to avoid foreign key constraints
         await prisma.transaction.deleteMany({
@@ -77,6 +84,9 @@ export async function DELETE(request: NextRequest) {
           where: { userId: dbUser.id }
         })
         await prisma.description.deleteMany({
+          where: { userId: dbUser.id }
+        })
+        await prisma.investmentAccount.deleteMany({
           where: { userId: dbUser.id }
         })
         // Don't delete the user record itself, just their data

@@ -19,10 +19,11 @@ model User {
   updatedAt    DateTime      @updatedAt
   
   // Relations
-  transactions Transaction[]
-  categories   Category[]
-  budgets      Budget[]
-  descriptions Description[]
+  transactions       Transaction[]
+  categories         Category[]
+  budgets            Budget[]
+  descriptions       Description[]
+  investmentAccounts InvestmentAccount[]
   
   @@map("users")
 }
@@ -94,6 +95,24 @@ model Description {
   
   @@unique([name, userId])
   @@map("descriptions")
+}
+
+model InvestmentAccount {
+  id                   String   @id @default(cuid())
+  name                 String
+  accountType          String
+  currentValue         Float
+  currency             String   @default("CAD")
+  monthlyReturnPercent Float    @default(0)
+  annualReturnPercent  Float    @default(0)
+  userId               String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("investment_accounts")
 }
 
 enum TransactionType {

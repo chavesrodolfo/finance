@@ -254,7 +254,7 @@ export default function SettingsPage() {
   const [deletingData, setDeletingData] = useState<string | null>(null);
   const [confirmationDialog, setConfirmationDialog] = useState<{
     open: boolean;
-    dataType: 'transactions' | 'categories' | 'budgets' | 'descriptions' | 'all' | null;
+    dataType: 'transactions' | 'categories' | 'budgets' | 'descriptions' | 'investment-accounts' | 'all' | null;
     title: string;
     description: string;
   }>({
@@ -264,7 +264,7 @@ export default function SettingsPage() {
     description: ''
   });
 
-  const showDeleteConfirmation = (dataType: 'transactions' | 'categories' | 'budgets' | 'descriptions' | 'all') => {
+  const showDeleteConfirmation = (dataType: 'transactions' | 'categories' | 'budgets' | 'descriptions' | 'investment-accounts' | 'all') => {
     const configs = {
       transactions: {
         title: 'Delete All Transactions',
@@ -282,9 +282,13 @@ export default function SettingsPage() {
         title: 'Delete All Descriptions',
         description: 'This will permanently delete all your saved transaction descriptions. This action cannot be undone.'
       },
+      'investment-accounts': {
+        title: 'Delete All Investment Accounts',
+        description: 'This will permanently delete all your investment accounts and their performance data. This action cannot be undone.'
+      },
       all: {
         title: 'Delete All Data',
-        description: 'This will permanently delete ALL your data including transactions, categories, budgets, and descriptions. This action cannot be undone and will essentially reset your account.'
+        description: 'This will permanently delete ALL your data including transactions, categories, budgets, descriptions, and investment accounts. This action cannot be undone and will essentially reset your account.'
       }
     };
 
@@ -708,6 +712,23 @@ export default function SettingsPage() {
                       disabled={deletingData === 'descriptions'}
                     >
                       {deletingData === 'descriptions' ? 'Deleting...' : 'Delete Descriptions'}
+                    </Button>
+                  </div>
+                  
+                  {/* Delete Investment Accounts */}
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h4 className="font-medium">Delete All Investment Accounts</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Remove all investment accounts and their performance data.
+                      </p>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      onClick={() => showDeleteConfirmation('investment-accounts')}
+                      disabled={deletingData === 'investment-accounts'}
+                    >
+                      {deletingData === 'investment-accounts' ? 'Deleting...' : 'Delete Investment Accounts'}
                     </Button>
                   </div>
                   
