@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlusCircle, Edit, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IconPicker } from "@/components/ui/icon-picker";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { iconMap, getTransactionTypeIcon } from "@/lib/category-icons";
 import { toast } from "@/hooks/use-toast";
 import { useUser } from "@stackframe/stack";
@@ -249,13 +250,109 @@ export default function SettingsPage() {
     }
   };
   
+  // User data deletion handlers
+  const [deletingData, setDeletingData] = useState<string | null>(null);
+  const [confirmationDialog, setConfirmationDialog] = useState<{
+    open: boolean;
+    dataType: 'transactions' | 'categories' | 'budgets' | 'descriptions' | 'all' | null;
+    title: string;
+    description: string;
+  }>({
+    open: false,
+    dataType: null,
+    title: '',
+    description: ''
+  });
+
+  const showDeleteConfirmation = (dataType: 'transactions' | 'categories' | 'budgets' | 'descriptions' | 'all') => {
+    const configs = {
+      transactions: {
+        title: 'Delete All Transactions',
+        description: 'This will permanently delete all your transaction records. Your categories and budgets will remain intact. This action cannot be undone.'
+      },
+      categories: {
+        title: 'Delete All Categories',
+        description: 'This will permanently delete all your categories and their associated transactions and budgets. This action cannot be undone.'
+      },
+      budgets: {
+        title: 'Delete All Budgets',
+        description: 'This will permanently delete all your budget entries. Your transactions and categories will remain intact. This action cannot be undone.'
+      },
+      descriptions: {
+        title: 'Delete All Descriptions',
+        description: 'This will permanently delete all your saved transaction descriptions. This action cannot be undone.'
+      },
+      all: {
+        title: 'Delete All Data',
+        description: 'This will permanently delete ALL your data including transactions, categories, budgets, and descriptions. This action cannot be undone and will essentially reset your account.'
+      }
+    };
+
+    const config = configs[dataType];
+    setConfirmationDialog({
+      open: true,
+      dataType,
+      title: config.title,
+      description: config.description
+    });
+  };
+  
+  const handleDeleteUserData = async () => {
+    const { dataType } = confirmationDialog;
+    if (!user || !dataType) return;
+    
+    setDeletingData(dataType);
+    
+    try {
+      const response = await fetch(`/api/user-data?type=${dataType}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        toast({ 
+          title: "Success", 
+          description: result.message 
+        });
+        
+        // Refresh data based on what was deleted
+        if (dataType === 'categories' || dataType === 'all') {
+          setCategories([]);
+        }
+        if (dataType === 'descriptions' || dataType === 'all') {
+          setDescriptions([]);
+        }
+        
+        // If all data was deleted, we might want to redirect or refresh the page
+        if (dataType === 'all') {
+          window.location.reload();
+        }
+      } else {
+        const error = await response.json();
+        toast({ 
+          title: "Error", 
+          description: error.error || "Failed to delete data" 
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting user data:', error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to delete data" 
+      });
+    } finally {
+      setDeletingData(null);
+    }
+  };
+  
   if (loading) {
     return (
       <div className="max-w-5xl mx-auto">
         <Skeleton className="h-9 w-32 mb-6" />
         
         <div className="w-full">
-          <div className="grid grid-cols-3 mb-6">
+          <div className="grid grid-cols-4 mb-6">
+            <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
@@ -295,10 +392,11 @@ export default function SettingsPage() {
       <h1 className="text-3xl font-bold mb-6">Settings</h1>
       
       <Tabs defaultValue="types" className="w-full">
-        <TabsList className="grid grid-cols-3 mb-6">
+        <TabsList className="grid grid-cols-4 mb-6">
           <TabsTrigger value="types">Transaction Types</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
           <TabsTrigger value="descriptions">Descriptions</TabsTrigger>
+          <TabsTrigger value="user-data">User Data</TabsTrigger>
         </TabsList>
         
         {/* Transaction Types Tab */}
@@ -523,7 +621,134 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+        
+        {/* User Data Tab */}
+        <TabsContent value="user-data">
+          <Card>
+            <CardHeader>
+              <CardTitle>User Data Management</CardTitle>
+              <CardDescription>
+                Delete specific types of data or all your data. These actions cannot be undone.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-red-800 dark:text-red-200 mb-2">
+                    ⚠️ Warning: Data Deletion
+                  </h3>
+                  <p className="text-sm text-red-700 dark:text-red-300">
+                    All deletion actions are permanent and cannot be undone. Please make sure you have backups if needed.
+                  </p>
+                </div>
+                
+                <div className="grid gap-4">
+                  {/* Delete Transactions */}
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h4 className="font-medium">Delete All Transactions</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Remove all transaction records while keeping categories and budgets.
+                      </p>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      onClick={() => showDeleteConfirmation('transactions')}
+                      disabled={deletingData === 'transactions'}
+                    >
+                      {deletingData === 'transactions' ? 'Deleting...' : 'Delete Transactions'}
+                    </Button>
+                  </div>
+                  
+                  {/* Delete Categories */}
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h4 className="font-medium">Delete All Categories</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Remove all categories and their associated transactions.
+                      </p>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      onClick={() => showDeleteConfirmation('categories')}
+                      disabled={deletingData === 'categories'}
+                    >
+                      {deletingData === 'categories' ? 'Deleting...' : 'Delete Categories'}
+                    </Button>
+                  </div>
+                  
+                  {/* Delete Budgets */}
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h4 className="font-medium">Delete All Budgets</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Remove all budget records and settings.
+                      </p>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      onClick={() => showDeleteConfirmation('budgets')}
+                      disabled={deletingData === 'budgets'}
+                    >
+                      {deletingData === 'budgets' ? 'Deleting...' : 'Delete Budgets'}
+                    </Button>
+                  </div>
+                  
+                  {/* Delete Descriptions */}
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h4 className="font-medium">Delete All Descriptions</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Remove all custom transaction descriptions.
+                      </p>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      onClick={() => showDeleteConfirmation('descriptions')}
+                      disabled={deletingData === 'descriptions'}
+                    >
+                      {deletingData === 'descriptions' ? 'Deleting...' : 'Delete Descriptions'}
+                    </Button>
+                  </div>
+                  
+                  {/* Delete All Data */}
+                  <div className="mt-8 p-4 border border-red-300 dark:border-red-700 rounded-lg bg-red-50 dark:bg-red-900/20">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium text-red-800 dark:text-red-200">Delete All Data</h4>
+                        <p className="text-sm text-red-700 dark:text-red-300">
+                          Permanently remove ALL your data including transactions, categories, budgets, and descriptions.
+                        </p>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        onClick={() => showDeleteConfirmation('all')}
+                        disabled={deletingData === 'all'}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        {deletingData === 'all' ? 'Deleting...' : 'Delete All Data'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        open={confirmationDialog.open}
+        onOpenChange={(open) => setConfirmationDialog(prev => ({ ...prev, open }))}
+        title={confirmationDialog.title}
+        description={confirmationDialog.description}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDeleteUserData}
+        isDestructive={true}
+        isLoading={!!deletingData}
+      />
     </div>
   );
 } 
