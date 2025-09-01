@@ -54,7 +54,7 @@ export async function GET() {
 }
 
 // Alternative endpoint using a different free API as backup
-export async function fetchAlternativeRates() {
+async function fetchAlternativeRates() {
   try {
     // Using Fixer.io-style free API
     const response = await fetch('https://api.fxratesapi.com/latest?base=CAD&symbols=USD,BRL');
