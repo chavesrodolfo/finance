@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { DEFAULT_DESCRIPTIONS } from "@/lib/constants-client";
+import { iconMap } from "@/lib/category-icons";
 
 // Transaction types
 const transactionTypes = [
@@ -36,6 +37,7 @@ interface Category {
   id: string;
   name: string;
   color?: string;
+  icon?: string;
 }
 
 export default function NewTransactionPage() {
@@ -280,19 +282,17 @@ export default function NewTransactionPage() {
                   <SelectValue placeholder={isLoadingCategories ? "Loading categories..." : "Select category"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      <div className="flex items-center gap-2">
-                        {category.color && (
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: category.color }}
-                          />
-                        )}
-                        {category.name}
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {categories.map((category) => {
+                    const IconComponent = iconMap[category.icon || "Tag"];
+                    return (
+                      <SelectItem key={category.id} value={category.id}>
+                        <div className="flex items-center gap-2">
+                          <IconComponent className="h-4 w-4 text-muted-foreground" />
+                          {category.name}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>

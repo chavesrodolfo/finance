@@ -1,11 +1,12 @@
 import { prisma } from '@/lib/db'
-import { DEFAULT_CATEGORIES } from '@/lib/constants'
+import { DEFAULT_CATEGORIES, DEFAULT_DESCRIPTIONS } from '@/lib/constants'
+import { getCategoryIcon, getDescriptionIcon } from '@/lib/category-icons'
 
 export async function initializeUserData(stackUserId: string, email: string, name?: string) {
   // Check if user already exists
   let user = await prisma.user.findUnique({
     where: { stackUserId },
-    include: { categories: true }
+    include: { categories: true, descriptions: true }
   })
 
   // Create user if doesn't exist
@@ -16,7 +17,7 @@ export async function initializeUserData(stackUserId: string, email: string, nam
         email,
         name,
       },
-      include: { categories: true }
+      include: { categories: true, descriptions: true }
     })
   }
 
@@ -25,6 +26,7 @@ export async function initializeUserData(stackUserId: string, email: string, nam
     await prisma.category.createMany({
       data: DEFAULT_CATEGORIES.map(category => ({
         ...category,
+        icon: getCategoryIcon(category.name),
         userId: user!.id
       }))
     })
@@ -32,7 +34,7 @@ export async function initializeUserData(stackUserId: string, email: string, nam
     // Fetch user with categories
     const userWithCategories = await prisma.user.findUnique({
       where: { id: user!.id },
-      include: { categories: true }
+      include: { categories: true, descriptions: true }
     })
     
     if (!userWithCategories) {
@@ -40,6 +42,29 @@ export async function initializeUserData(stackUserId: string, email: string, nam
     }
     
     user = userWithCategories
+  }
+
+  // Create default descriptions if user has none
+  if (user && user.descriptions.length === 0) {
+    await prisma.description.createMany({
+      data: DEFAULT_DESCRIPTIONS.map(description => ({
+        name: description,
+        icon: getDescriptionIcon(description),
+        userId: user!.id
+      }))
+    })
+
+    // Fetch user with descriptions
+    const userWithDescriptions = await prisma.user.findUnique({
+      where: { id: user!.id },
+      include: { categories: true, descriptions: true }
+    })
+    
+    if (!userWithDescriptions) {
+      throw new Error('Failed to fetch user after creating descriptions')
+    }
+    
+    user = userWithDescriptions
   }
 
   return user
@@ -89,6 +114,15 @@ export async function getUserBudgets(userId: string) {
     where: { userId },
     orderBy: {
       createdAt: 'desc'
+    }
+  })
+}
+
+export async function getUserDescriptions(userId: string) {
+  return await prisma.description.findMany({
+    where: { userId },
+    orderBy: {
+      name: 'asc'
     }
   })
 }

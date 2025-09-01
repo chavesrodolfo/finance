@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { TransactionActions } from "@/components/transactions/actions-dropdown";
+import { iconMap } from "@/lib/category-icons";
 
 interface Transaction {
   id: string;
@@ -22,6 +23,7 @@ interface Transaction {
     id: string;
     name: string;
     color?: string;
+    icon?: string;
   };
 }
 
@@ -625,10 +627,10 @@ export default function TransactionsPage() {
                       className="flex justify-between items-center p-4 hover:bg-muted/20 transition-colors"
                     >
                       <div className="flex items-center gap-4">
-                        <div 
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: transaction.category.color || '#6b7280' }}
-                        />
+                        {(() => {
+                          const IconComponent = iconMap[transaction.category.icon || "Tag"];
+                          return <IconComponent className="h-5 w-5 text-muted-foreground flex-shrink-0" />;
+                        })()}
                         <div>
                           <div className="font-medium">{transaction.description}</div>
                           <div className="text-xs text-muted-foreground">

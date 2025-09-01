@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, Plus, Upload, Download, FileText } from "lucide-react";
 import Link from "next/link";
@@ -17,7 +17,6 @@ export function TransactionActions({
   onDownloadTemplate 
 }: TransactionActionsProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImportClick = () => {
     setIsOpen(false);

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { stackServerApp } from '@/stack'
-import { getUserCategories, initializeUserData } from '@/lib/services/database'
+import { getUserDescriptions, initializeUserData } from '@/lib/services/database'
 import { prisma } from '@/lib/db'
-import { getCategoryIcon } from '@/lib/category-icons'
+import { getDescriptionIcon } from '@/lib/category-icons'
 
 export async function GET() {
   try {
@@ -23,12 +23,12 @@ export async function GET() {
       return NextResponse.json({ error: 'Failed to initialize user' }, { status: 500 })
     }
 
-    // Get user categories
-    const categories = await getUserCategories(dbUser.id)
+    // Get user descriptions
+    const descriptions = await getUserDescriptions(dbUser.id)
 
-    return NextResponse.json(categories)
+    return NextResponse.json(descriptions)
   } catch (error) {
-    console.error('Error fetching categories:', error)
+    console.error('Error fetching descriptions:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -56,13 +56,13 @@ export async function POST(request: Request) {
     const { name, icon } = await request.json()
 
     if (!name?.trim()) {
-      return NextResponse.json({ error: 'Category name is required' }, { status: 400 })
+      return NextResponse.json({ error: 'Description name is required' }, { status: 400 })
     }
 
-    // Create category with icon (use provided icon or auto-assign based on name)
-    const finalIcon = icon || getCategoryIcon(name)
+    // Create description with icon (use provided icon or auto-assign based on name)
+    const finalIcon = icon || getDescriptionIcon(name)
 
-    const category = await prisma.category.create({
+    const description = await prisma.description.create({
       data: {
         name: name.trim(),
         icon: finalIcon,
@@ -70,9 +70,9 @@ export async function POST(request: Request) {
       }
     })
 
-    return NextResponse.json(category)
+    return NextResponse.json(description)
   } catch (error) {
-    console.error('Error creating category:', error)
+    console.error('Error creating description:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

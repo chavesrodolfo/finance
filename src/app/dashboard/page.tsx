@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { MetricCardSkeleton, TransactionListSkeleton, BudgetCardSkeleton } from "@/components/dashboard/skeletons";
 import { formatCurrency } from "@/lib/utils";
+import { iconMap } from "@/lib/category-icons";
 
 interface Transaction {
   id: string;
@@ -19,6 +20,7 @@ interface Transaction {
     id: string;
     name: string;
     color?: string;
+    icon?: string;
   };
 }
 
@@ -211,13 +213,18 @@ export default function Dashboard() {
                 recentTransactions.map((transaction) => (
                   <div key={transaction.id} className="flex justify-between items-center p-3 rounded-lg hover:bg-muted/10 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        transaction.type === 'INCOME'
-                          ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' 
-                          : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
-                      }`}>
-                        {transaction.type === 'INCOME' ? '+' : '-'}
-                      </div>
+                      {(() => {
+                        const IconComponent = iconMap[transaction.category.icon || "Tag"];
+                        return (
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            transaction.type === 'INCOME'
+                              ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                              : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                          }`}>
+                            <IconComponent className="h-5 w-5" />
+                          </div>
+                        );
+                      })()}
                       <div>
                         <p className="font-medium text-foreground">{transaction.description}</p>
                         <p className="text-xs text-muted-foreground">
