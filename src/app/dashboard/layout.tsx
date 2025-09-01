@@ -5,7 +5,7 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BarChart, Home, Settings, Clock, DollarSign, PieChart, TrendingUp, ChevronRight, ChevronLeft } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +16,21 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Load sidebar state from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('sidebar-open');
+    if (saved !== null) {
+      setSidebarOpen(JSON.parse(saved));
+    }
+  }, []);
+
+  // Save sidebar state to localStorage when it changes
+  const toggleSidebar = () => {
+    const newState = !sidebarOpen;
+    setSidebarOpen(newState);
+    localStorage.setItem('sidebar-open', JSON.stringify(newState));
+  };
   
   const navItems = [
     { name: "Dashboard", href: "/dashboard", icon: <Home className="h-4 w-4" /> },
@@ -135,7 +150,7 @@ export default function DashboardLayout({
             variant="ghost"
             size="sm"
             className="hidden md:flex -ml-1"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            onClick={toggleSidebar}
           >
             {sidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </Button>
