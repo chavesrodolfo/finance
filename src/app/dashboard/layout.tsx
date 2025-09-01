@@ -16,6 +16,7 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMac, setIsMac] = useState(false);
 
   // Load sidebar state from localStorage on mount
   useEffect(() => {
@@ -23,6 +24,9 @@ export default function DashboardLayout({
     if (saved !== null) {
       setSidebarOpen(JSON.parse(saved));
     }
+    
+    // Detect platform on client side
+    setIsMac(navigator.platform.includes("Mac"));
   }, []);
 
   // Save sidebar state to localStorage when it changes
@@ -168,6 +172,13 @@ export default function DashboardLayout({
           </Link>
           
           <div className="ml-auto flex items-center gap-2">
+            {/* Command Palette Hint */}
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted text-muted-foreground text-xs">
+              <span>Quick navigation:</span>
+              <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                <span className="text-xs">{isMac ? "⌘" : "Ctrl"}</span>K
+              </kbd>
+            </div>
             <ThemeToggle />
             <AuthButton />
           </div>

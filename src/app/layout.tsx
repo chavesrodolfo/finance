@@ -4,6 +4,7 @@ import { stackServerApp } from "../stack";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { CommandPalette } from "@/components/ui/command-palette";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -42,6 +43,7 @@ export default function RootLayout({
           <StackProvider app={stackServerApp}>
             <StackTheme>
               {children}
+              <CommandPalette />
               <Toaster />
             </StackTheme>
           </StackProvider>
