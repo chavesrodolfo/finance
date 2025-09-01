@@ -14,7 +14,7 @@ const UpdateBudgetSchema = z.object({
 // PUT /api/budget/[id] - Update a budget item
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await stackServerApp.getUser();
@@ -22,13 +22,14 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const resolvedParams = await params;
     const body = await request.json();
     const validatedData = UpdateBudgetSchema.parse(body);
 
     // Verify budget belongs to user
     const existingBudget = await prisma.budget.findFirst({
       where: {
-        id: params.id,
+        id: resolvedParams.id,
         user: {
           stackUserId: user.id
         }
@@ -40,7 +41,7 @@ export async function PUT(
     }
 
     const budget = await prisma.budget.update({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
       data: validatedData
     });
 
@@ -65,7 +66,7 @@ export async function PUT(
 // DELETE /api/budget/[id] - Delete a budget item
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await stackServerApp.getUser();
@@ -73,10 +74,12 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const resolvedParams = await params;
+    
     // Verify budget belongs to user
     const existingBudget = await prisma.budget.findFirst({
       where: {
-        id: params.id,
+        id: resolvedParams.id,
         user: {
           stackUserId: user.id
         }
@@ -88,7 +91,7 @@ export async function DELETE(
     }
 
     await prisma.budget.delete({
-      where: { id: params.id }
+      where: { id: resolvedParams.id }
     });
 
     return NextResponse.json({ message: 'Budget deleted successfully' });
