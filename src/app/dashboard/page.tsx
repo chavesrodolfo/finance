@@ -196,7 +196,7 @@ export default function Dashboard() {
       {/* Transactions and budget section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="bg-card/50 backdrop-blur-sm border-border/20">
-          <div className="p-6">
+          <div className="p-6 flex flex-col h-full">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-medium text-foreground">Recent Transactions</h3>
               <select className="text-sm rounded-md px-3 py-1 bg-muted/30 border border-border/30 text-foreground">
@@ -205,7 +205,7 @@ export default function Dashboard() {
                 <option>This month</option>
               </select>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-4 flex-grow">
               {recentTransactions.length === 0 ? (
                 <div className="text-center py-4 text-muted-foreground">No recent transactions</div>
               ) : (
@@ -244,11 +244,11 @@ export default function Dashboard() {
         </Card>
         
         <Card className="bg-card/50 backdrop-blur-sm border-border/20">
-          <div className="p-6">
+          <div className="p-6 flex flex-col h-full">
             <div className="mb-6">
               <h3 className="text-lg font-medium text-foreground">Monthly Budget</h3>
             </div>
-            <div className="space-y-5">
+            <div className="space-y-5 flex-grow">
               {budgetItems.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="mb-4">
@@ -260,14 +260,6 @@ export default function Dashboard() {
                   <p className="text-muted-foreground mb-4">
                     Create your monthly budget to track spending and financial goals.
                   </p>
-                  <Link href="/dashboard/budget">
-                    <Button variant="outline" className="flex items-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 5v14m-7-7h14"/>
-                      </svg>
-                      Set Up Budget
-                    </Button>
-                  </Link>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -275,7 +267,7 @@ export default function Dashboard() {
                     <p className="text-3xl font-bold text-foreground">{formatCurrency(totalBudget)}</p>
                   </div>
                   
-                  <div className="pt-4 border-t">
+                  <div className="pt-4 border-t border-border/30">
                     <h4 className="text-lg font-medium mb-4 text-foreground">Top Expenses</h4>
                     <div className="space-y-4">
                       {topBudgetItems.map((item, index) => (
@@ -306,26 +298,35 @@ export default function Dashboard() {
                     </div>
                   </div>
                   
-                  <Link href="/dashboard/budget" className="block w-full text-center text-sm text-blue-400 hover:text-blue-300 transition-colors font-medium py-2 border border-border/30 rounded-md hover:bg-muted/10">
-                    View Full Budget →
-                  </Link>
+                  {budgetItems.length > 0 && (
+                    <div className="pt-4 border-t border-border/30">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-foreground">Total Spent</span>
+                        <span className="font-bold text-lg text-foreground">${totalExpenses.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-sm text-muted-foreground">Budget: {formatCurrency(totalBudget)}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {((totalExpenses / totalBudget) * 100).toFixed(0)}% used
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-            {budgetItems.length > 0 && (
-              <div className="mt-6 pt-4 border-t border-border/30">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium text-foreground">Total Spent</span>
-                  <span className="font-bold text-lg text-foreground">${totalExpenses.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center mt-1">
-                  <span className="text-sm text-muted-foreground">Budget: {formatCurrency(totalBudget)}</span>
-                  <span className="text-sm text-muted-foreground">
-                    {((totalExpenses / totalBudget) * 100).toFixed(0)}% used
-                  </span>
-                </div>
-              </div>
-            )}
+            <Link href="/dashboard/budget" className="block w-full mt-6 text-center text-sm text-blue-400 hover:text-blue-300 transition-colors font-medium py-2 border border-border/30 rounded-md hover:bg-muted/10">
+              {budgetItems.length === 0 ? (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline mr-2">
+                    <path d="M12 5v14m-7-7h14"/>
+                  </svg>
+                  Set Up Budget
+                </>
+              ) : (
+                "View Full Budget →"
+              )}
+            </Link>
           </div>
         </Card>
       </div>
