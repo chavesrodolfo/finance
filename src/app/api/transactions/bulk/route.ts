@@ -116,10 +116,16 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Validate transaction type
+        // Validate and map transaction type
         const validTypes = ['EXPENSE', 'INCOME', 'EXPENSE_SAVINGS', 'RETURN'];
-        const type = validTypes.includes(transactionData.type) ? transactionData.type : 'EXPENSE';
-        console.log('Bulk API: Transaction type:', transactionData.type, '-> mapped to:', type);
+        let type = transactionData.type;
+        
+        if (!validTypes.includes(type)) {
+          console.log('Bulk API: Invalid type received:', type, '-> defaulting to EXPENSE');
+          type = 'EXPENSE';
+        }
+        
+        console.log('Bulk API: Transaction type mapping:', transactionData.type, '->', type);
 
         // Parse date
         let date = new Date();

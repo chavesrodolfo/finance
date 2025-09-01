@@ -6,11 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ReportsSkeleton } from "@/components/dashboard/skeletons";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 interface ExpenseData {
   category: string;
@@ -33,6 +32,22 @@ interface TransactionData {
   date: string;
   amount: number;
   description: string;
+  notes?: string;
+  category?: {
+    name: string;
+    color?: string;
+    icon?: string;
+  };
+  type: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface RawTransactionData {
+  id: string;
+  date: string;
+  amount: number;
+  description?: string;
   notes?: string;
   category?: {
     name: string;
@@ -163,7 +178,7 @@ export default function ReportsPage() {
         });
 
         // Store filtered transactions for the table
-        setFilteredTransactions(filteredData.map((t: any) => ({
+        setFilteredTransactions(filteredData.map((t: RawTransactionData) => ({
           id: t.id,
           date: t.date,
           amount: t.amount,

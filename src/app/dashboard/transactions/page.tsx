@@ -202,6 +202,40 @@ export default function TransactionsPage() {
       // Process each row and create transactions
       const uploadedTransactions = [];
       const skippedTransactions = [];
+      
+      // Function to map CSV transaction types to database types
+      const mapTransactionType = (csvType: string): string => {
+        const normalizedType = csvType.trim().toLowerCase();
+        
+        // Map various CSV type formats to database types
+        const typeMap: { [key: string]: string } = {
+          // Standard formats
+          'expense': 'EXPENSE',
+          'expenses': 'EXPENSE',
+          'income': 'INCOME',
+          'return': 'RETURN',
+          
+          // Expense Savings variations
+          'expense savings': 'EXPENSE_SAVINGS',
+          'expense_savings': 'EXPENSE_SAVINGS',
+          'expensesavings': 'EXPENSE_SAVINGS',
+          'savings': 'EXPENSE_SAVINGS',
+          'saving': 'EXPENSE_SAVINGS',
+          
+          // Common variations
+          'spend': 'EXPENSE',
+          'spending': 'EXPENSE',
+          'payment': 'EXPENSE',
+          'debit': 'EXPENSE',
+          'credit': 'INCOME',
+          'deposit': 'INCOME',
+          'refund': 'RETURN',
+          'reimbursement': 'RETURN'
+        };
+        
+        return typeMap[normalizedType] || 'EXPENSE'; // Default to EXPENSE if not found
+      };
+
       for (const row of csvData) {
         console.log('Processing CSV row:', row);
         // Get all available keys to help with debugging
@@ -218,7 +252,7 @@ export default function TransactionsPage() {
           description: row['Description'] || row['description'] || '',
           notes: row['Details'] || row['details'] || '',
           date: row['Date'] || row['date'] || new Date().toISOString().split('T')[0],
-          type: (row['Type'] || row['type'] || 'EXPENSE').toUpperCase(),
+          type: mapTransactionType(row['Type'] || row['type'] || 'EXPENSE'),
           categoryName: row['Category'] || row['category'] || 'Other'
         };
         console.log('Mapped transaction:', transaction);
@@ -368,9 +402,13 @@ export default function TransactionsPage() {
   const handleDownloadTemplate = () => {
     const templateHeaders = ['Date', 'Description', 'Amount', 'Type', 'Category', 'Notes'];
     const templateData = [
-      ['2025-08-30', 'Sample Expense', '-50.00', 'EXPENSE', 'Food', 'Lunch at restaurant'],
-      ['2025-08-30', 'Sample Income', '100.00', 'INCOME', 'Payroll', 'Freelance payment'],
-      ['2025-08-30', 'Sample Savings', '-25.00', 'EXPENSE_SAVINGS', 'Savings', 'Emergency fund']
+      ['2025-08-30', 'Grocery Shopping', '-75.50', 'EXPENSE', 'Food', 'Weekly groceries'],
+      ['2025-08-30', 'Freelance Payment', '500.00', 'INCOME', 'Work', 'Web development project'],
+      ['2025-08-30', 'Emergency Fund', '-100.00', 'EXPENSE_SAVINGS', 'Savings', 'Monthly savings contribution'],
+      ['2025-08-30', 'Store Refund', '25.99', 'RETURN', 'Shopping', 'Returned defective item'],
+      ['2025-08-29', 'Coffee Shop', '-4.50', 'Expense', 'Food', 'Morning coffee'],
+      ['2025-08-29', 'Investment Transfer', '-200.00', 'Expense Savings', 'Investment', 'Monthly investment'],
+      ['2025-08-29', 'Salary Deposit', '3000.00', 'Income', 'Work', 'Monthly salary']
     ];
 
     const csvContent = [
@@ -390,7 +428,7 @@ export default function TransactionsPage() {
     
     toast({
       title: "Template downloaded",
-      description: "CSV template with sample data has been downloaded.",
+      description: "CSV template shows supported transaction types: Expense, Income, Expense Savings, and Return.",
     });
   };
 
