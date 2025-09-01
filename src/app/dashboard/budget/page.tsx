@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { AddBudgetDialog } from "@/components/budget/add-budget-dialog";
 import { EditBudgetDialog } from "@/components/budget/edit-budget-dialog";
-import { useToast } from "@/hooks/use-toast";
+// import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 
 interface BudgetItem {
