@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportsSkeleton } from "@/components/dashboard/skeletons";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 import { ChevronDown, X } from "lucide-react";
 
@@ -25,6 +26,22 @@ interface MonthlyData {
 interface YearlyData {
   year: string;
   amount: number;
+}
+
+interface TransactionData {
+  id: string;
+  date: string;
+  amount: number;
+  description: string;
+  notes?: string;
+  category?: {
+    name: string;
+    color?: string;
+    icon?: string;
+  };
+  type: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function ReportsPage() {
@@ -46,6 +63,8 @@ export default function ReportsPage() {
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [allCategories, setAllCategories] = useState<string[]>([]);
   const [allDescriptions, setAllDescriptions] = useState<string[]>([]);
+  const [filteredTransactions, setFilteredTransactions] = useState<TransactionData[]>([]);
+  const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set());
   
   // Multi-select dropdown states
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
@@ -142,6 +161,19 @@ export default function ReportsPage() {
           
           return categoryMatch && descriptionMatch;
         });
+
+        // Store filtered transactions for the table
+        setFilteredTransactions(filteredData.map((t: any) => ({
+          id: t.id,
+          date: t.date,
+          amount: t.amount,
+          description: t.description || "No Description",
+          notes: t.notes,
+          category: t.category,
+          type: t.type,
+          createdAt: t.createdAt,
+          updatedAt: t.updatedAt
+        })));
 
         // Process analytics with filtered data
         const expenses = filteredData.filter((t: { type: string }) => t.type === "EXPENSE" || t.type === "EXPENSE_SAVINGS");
@@ -276,6 +308,17 @@ export default function ReportsPage() {
   const applyFilters = () => {
     setSelectedCategories(pendingCategories);
     setSelectedDescriptions(pendingDescriptions);
+  };
+
+  // Function to toggle transaction expansion
+  const toggleTransactionExpansion = (transactionId: string) => {
+    const newExpanded = new Set(expandedTransactions);
+    if (newExpanded.has(transactionId)) {
+      newExpanded.delete(transactionId);
+    } else {
+      newExpanded.add(transactionId);
+    }
+    setExpandedTransactions(newExpanded);
   };
 
   // Check if there are pending changes
@@ -1218,6 +1261,246 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Transactions Data Table */}
+          {filteredTransactions.length > 0 && (
+            <Card className="bg-card text-card-foreground border mt-6">
+              <CardHeader>
+                <CardTitle>
+                  Transaction Details ({filteredTransactions.length} transactions)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="max-h-96 overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-8"></TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Notes</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredTransactions.map((transaction) => (
+                        <React.Fragment key={transaction.id}>
+                          <TableRow>
+                            <TableCell>
+                              <button
+                                onClick={() => toggleTransactionExpansion(transaction.id)}
+                                className="p-1 hover:bg-muted rounded transition-colors"
+                              >
+                                <ChevronDown 
+                                  className={`h-4 w-4 transition-transform ${
+                                    expandedTransactions.has(transaction.id) ? 'rotate-180' : ''
+                                  }`}
+                                />
+                              </button>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="font-medium">
+                                  {new Date(transaction.date).toLocaleDateString()}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(transaction.date).toLocaleDateString('en-US', { 
+                                    weekday: 'short' 
+                                  })}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span 
+                                className="inline-block px-2 py-1 text-xs font-medium rounded-md"
+                                style={{
+                                  backgroundColor: transaction.category?.color 
+                                    ? `${transaction.category.color}20` 
+                                    : 'rgb(var(--muted))',
+                                  color: transaction.category?.color || 'rgb(var(--muted-foreground))',
+                                  borderColor: transaction.category?.color || 'rgb(var(--border))'
+                                }}
+                              >
+                                {transaction.category?.name || "Uncategorized"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="max-w-xs">
+                              <div className="font-medium truncate" title={transaction.description}>
+                                {transaction.description.length > 30 
+                                  ? `${transaction.description.substring(0, 30)}...`
+                                  : transaction.description
+                                }
+                              </div>
+                            </TableCell>
+                            <TableCell className="max-w-xs">
+                              {transaction.notes ? (
+                                <div className="text-sm text-muted-foreground truncate" title={transaction.notes}>
+                                  {transaction.notes.length > 25 
+                                    ? `${transaction.notes.substring(0, 25)}...`
+                                    : transaction.notes
+                                  }
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground italic">No notes</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <span className={`inline-block px-2 py-1 text-xs font-medium rounded-md ${
+                                transaction.type === "EXPENSE" || transaction.type === "EXPENSE_SAVINGS"
+                                  ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                                  : transaction.type === "INCOME"
+                                  ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                  : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                              }`}>
+                                {transaction.type.replace('_', ' ')}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              <span className={
+                                transaction.type === "EXPENSE" || transaction.type === "EXPENSE_SAVINGS"
+                                  ? "text-red-600 dark:text-red-400"
+                                  : transaction.type === "INCOME"
+                                  ? "text-green-600 dark:text-green-400"
+                                  : ""
+                              }>
+                                {transaction.type === "EXPENSE" || transaction.type === "EXPENSE_SAVINGS"
+                                  ? `-${formatCurrency(Math.abs(transaction.amount))}`
+                                  : formatCurrency(Math.abs(transaction.amount))
+                                }
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                          
+                          {/* Expanded row with full details */}
+                          {expandedTransactions.has(transaction.id) && (
+                            <TableRow>
+                              <TableCell></TableCell>
+                              <TableCell colSpan={6}>
+                                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                      <h4 className="font-medium text-sm mb-2">Transaction Details</h4>
+                                      <div className="space-y-2 text-sm">
+                                        <div>
+                                          <span className="text-muted-foreground">ID:</span>
+                                          <span className="ml-2 font-mono text-xs">{transaction.id}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Full Description:</span>
+                                          <p className="ml-2 mt-1">{transaction.description}</p>
+                                        </div>
+                                        {transaction.notes && (
+                                          <div>
+                                            <span className="text-muted-foreground">Notes:</span>
+                                            <p className="ml-2 mt-1">{transaction.notes}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <h4 className="font-medium text-sm mb-2">Timestamps</h4>
+                                      <div className="space-y-2 text-sm">
+                                        <div>
+                                          <span className="text-muted-foreground">Transaction Date:</span>
+                                          <div className="ml-2">
+                                            {new Date(transaction.date).toLocaleDateString('en-US', {
+                                              weekday: 'long',
+                                              year: 'numeric',
+                                              month: 'long',
+                                              day: 'numeric'
+                                            })}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Created:</span>
+                                          <div className="ml-2">
+                                            {new Date(transaction.createdAt).toLocaleString('en-US', {
+                                              weekday: 'short',
+                                              year: 'numeric',
+                                              month: 'short',
+                                              day: 'numeric',
+                                              hour: '2-digit',
+                                              minute: '2-digit'
+                                            })}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Last Updated:</span>
+                                          <div className="ml-2">
+                                            {new Date(transaction.updatedAt).toLocaleString('en-US', {
+                                              weekday: 'short',
+                                              year: 'numeric',
+                                              month: 'short',
+                                              day: 'numeric',
+                                              hour: '2-digit',
+                                              minute: '2-digit'
+                                            })}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  {transaction.category && (
+                                    <div className="pt-3 border-t border-border/50">
+                                      <h4 className="font-medium text-sm mb-2">Category Information</h4>
+                                      <div className="flex items-center gap-3">
+                                        <span 
+                                          className="px-3 py-1 text-sm font-medium rounded-md"
+                                          style={{
+                                            backgroundColor: transaction.category.color 
+                                              ? `${transaction.category.color}30` 
+                                              : 'rgb(var(--muted))',
+                                            color: transaction.category.color || 'rgb(var(--muted-foreground))'
+                                          }}
+                                        >
+                                          {transaction.category.icon && (
+                                            <span className="mr-2">{transaction.category.icon}</span>
+                                          )}
+                                          {transaction.category.name}
+                                        </span>
+                                        {transaction.category.color && (
+                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <div 
+                                              className="w-3 h-3 rounded-full"
+                                              style={{ backgroundColor: transaction.category.color }}
+                                            ></div>
+                                            <span>{transaction.category.color}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                {/* Summary row */}
+                <div className="border-t pt-4 mt-4">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">
+                      Total Expenses: {filteredTransactions.filter(t => t.type === "EXPENSE" || t.type === "EXPENSE_SAVINGS").length} transactions
+                    </span>
+                    <span className="font-medium text-lg">
+                      {formatCurrency(
+                        filteredTransactions
+                          .filter(t => t.type === "EXPENSE" || t.type === "EXPENSE_SAVINGS")
+                          .reduce((sum, t) => sum + Math.abs(t.amount), 0)
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
         </div>
       )}
