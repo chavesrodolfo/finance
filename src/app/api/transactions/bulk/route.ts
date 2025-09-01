@@ -13,6 +13,16 @@ type CategoryData = {
   updatedAt: Date
 }
 
+// Store progress in memory (in production, use Redis or database)
+const progressStore = new Map<string, {
+  total: number;
+  processed: number;
+  created: number;
+  skipped: number;
+  completed: boolean;
+  error?: string;
+}>();
+
 export async function POST(request: NextRequest) {
   try {
     const stackUser = await stackServerApp.getUser()
@@ -22,12 +32,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { transactions } = await request.json()
-    console.log('Bulk API: Received transactions:', JSON.stringify(transactions, null, 2))
+    const { transactions, jobId } = await request.json()
+    console.log('Bulk API: Received transactions:', transactions?.length, 'with jobId:', jobId)
 
     if (!transactions || !Array.isArray(transactions)) {
       console.error('Bulk API: Invalid transactions data:', transactions)
       return NextResponse.json({ error: 'Invalid transactions data' }, { status: 400 })
+    }
+
+    if (!jobId) {
+      return NextResponse.json({ error: 'Job ID is required' }, { status: 400 })
     }
 
     // Initialize user data if needed
@@ -42,12 +56,26 @@ export async function POST(request: NextRequest) {
     console.log('Bulk API: User categories:', userCategories)
     const categoryMap = new Map<string, CategoryData>(userCategories.map((cat: CategoryData) => [cat.name.toLowerCase(), cat]))
 
+    // Initialize progress tracking
+    progressStore.set(jobId, {
+      total: transactions.length,
+      processed: 0,
+      created: 0,
+      skipped: 0,
+      completed: false
+    });
+
     const createdTransactions = []
     let skippedCount = 0
+    const BATCH_SIZE = 10; // Process in smaller batches
 
-    console.log('Bulk API: Processing', transactions.length, 'transactions')
+    console.log('Bulk API: Processing', transactions.length, 'transactions in batches of', BATCH_SIZE)
 
-    for (const transactionData of transactions) {
+    // Process in batches to allow progress updates
+    for (let i = 0; i < transactions.length; i += BATCH_SIZE) {
+      const batch = transactions.slice(i, i + BATCH_SIZE);
+      
+      for (const transactionData of batch) {
       try {
         console.log('Bulk API: Processing transaction:', transactionData);
         // Always assign a valid category, create if not found
@@ -118,6 +146,26 @@ export async function POST(request: NextRequest) {
         console.error('Bulk API: Error creating transaction:', error, 'Data:', transactionData);
         skippedCount++;
       }
+      
+      // Update progress after each transaction
+      const currentProgress = progressStore.get(jobId);
+      if (currentProgress) {
+        currentProgress.processed++;
+        currentProgress.created = createdTransactions.length;
+        currentProgress.skipped = skippedCount;
+      }
+      }
+      
+      // Small delay between batches to prevent overwhelming the database
+      if (i + BATCH_SIZE < transactions.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    // Mark as completed
+    const finalProgress = progressStore.get(jobId);
+    if (finalProgress) {
+      finalProgress.completed = true;
     }
 
     console.log('Bulk API: Final result - Created:', createdTransactions.length, 'Skipped:', skippedCount)
@@ -126,12 +174,61 @@ export async function POST(request: NextRequest) {
       success: true,
       count: createdTransactions.length,
       skipped: skippedCount,
+      jobId,
       transactions: createdTransactions
     })
   } catch (error) {
     console.error('Error in bulk transaction creation:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+// GET /api/transactions/bulk?jobId=xxx - Get progress of bulk import
+export async function GET(request: NextRequest) {
+  try {
+    const stackUser = await stackServerApp.getUser()
+    
+    if (!stackUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const url = new URL(request.url)
+    const jobId = url.searchParams.get("jobId")
+    
+    if (!jobId) {
+      return NextResponse.json({ error: "Job ID is required" }, { status: 400 })
+    }
+
+    const progress = progressStore.get(jobId)
+    
+    if (!progress) {
+      return NextResponse.json({ error: "Job not found" }, { status: 404 })
+    }
+
+    // Clean up completed jobs after 30 seconds
+    if (progress.completed) {
+      setTimeout(() => {
+        progressStore.delete(jobId)
+      }, 30000)
+    }
+
+    return NextResponse.json({
+      jobId,
+      total: progress.total,
+      processed: progress.processed,
+      created: progress.created,
+      skipped: progress.skipped,
+      completed: progress.completed,
+      progress: progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0,
+      error: progress.error
+    })
+  } catch (error) {
+    console.error("Error getting bulk import progress:", error)
+    return NextResponse.json(
+      { error: "Internal server error" },
       { status: 500 }
     )
   }

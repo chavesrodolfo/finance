@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlusCircle, Edit, Trash2 } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Initial data
@@ -225,54 +224,52 @@ export default function SettingsPage() {
                 </Button>
               </div>
               
-              <ScrollArea className="h-[400px] pr-4">
-                <div className="space-y-2">
-                  {types.map((type, index) => (
-                    <div 
-                      key={index} 
-                      className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/20"
-                    >
+              <div className="space-y-2">
+                {types.map((type, index) => (
+                  <div 
+                    key={index} 
+                    className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/20"
+                  >
+                    {editingType && editingType.index === index ? (
+                      <Input
+                        value={editingType.value}
+                        onChange={(e) => setEditingType({ ...editingType, value: e.target.value })}
+                        autoFocus
+                      />
+                    ) : (
+                      <span>{type}</span>
+                    )}
+                    
+                    <div className="flex gap-2">
                       {editingType && editingType.index === index ? (
-                        <Input
-                          value={editingType.value}
-                          onChange={(e) => setEditingType({ ...editingType, value: e.target.value })}
-                          autoFocus
-                        />
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleSaveEdit(editingType.value, types, setTypes, editingType, setEditingType)}
+                        >
+                          Save
+                        </Button>
                       ) : (
-                        <span>{type}</span>
-                      )}
-                      
-                      <div className="flex gap-2">
-                        {editingType && editingType.index === index ? (
-                          <Button 
-                            size="sm" 
-                            onClick={() => handleSaveEdit(editingType.value, types, setTypes, editingType, setEditingType)}
-                          >
-                            Save
-                          </Button>
-                        ) : (
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            onClick={() => handleStartEdit(index, type, setEditingType)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        )}
-                        
                         <Button 
                           size="sm" 
                           variant="ghost" 
-                          className="text-destructive hover:text-destructive/90"
-                          onClick={() => handleDelete(index, types, setTypes)}
+                          onClick={() => handleStartEdit(index, type, setEditingType)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Edit className="h-4 w-4" />
                         </Button>
-                      </div>
+                      )}
+                      
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        className="text-destructive hover:text-destructive/90"
+                        onClick={() => handleDelete(index, types, setTypes)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -303,60 +300,58 @@ export default function SettingsPage() {
                 </Button>
               </div>
               
-              <ScrollArea className="h-[400px] pr-4">
-                <div className="space-y-2">
-                  {categories.map((category, index) => (
-                    <div 
-                      key={index} 
-                      className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/20"
-                    >
+              <div className="space-y-2">
+                {categories.map((category, index) => (
+                  <div 
+                    key={index} 
+                    className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/20"
+                  >
+                    {editingCategory && editingCategory.index === index ? (
+                      <Input
+                        value={editingCategory.value}
+                        onChange={(e) => setEditingCategory({ ...editingCategory, value: e.target.value })}
+                        autoFocus
+                      />
+                    ) : (
+                      <span>{category}</span>
+                    )}
+                    
+                    <div className="flex gap-2">
                       {editingCategory && editingCategory.index === index ? (
-                        <Input
-                          value={editingCategory.value}
-                          onChange={(e) => setEditingCategory({ ...editingCategory, value: e.target.value })}
-                          autoFocus
-                        />
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleSaveEdit(
+                            editingCategory.value, 
+                            categories, 
+                            setCategories, 
+                            editingCategory, 
+                            setEditingCategory
+                          )}
+                        >
+                          Save
+                        </Button>
                       ) : (
-                        <span>{category}</span>
-                      )}
-                      
-                      <div className="flex gap-2">
-                        {editingCategory && editingCategory.index === index ? (
-                          <Button 
-                            size="sm" 
-                            onClick={() => handleSaveEdit(
-                              editingCategory.value, 
-                              categories, 
-                              setCategories, 
-                              editingCategory, 
-                              setEditingCategory
-                            )}
-                          >
-                            Save
-                          </Button>
-                        ) : (
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            onClick={() => handleStartEdit(index, category, setEditingCategory)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        )}
-                        
                         <Button 
                           size="sm" 
                           variant="ghost" 
-                          className="text-destructive hover:text-destructive/90"
-                          onClick={() => handleDelete(index, categories, setCategories)}
+                          onClick={() => handleStartEdit(index, category, setEditingCategory)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Edit className="h-4 w-4" />
                         </Button>
-                      </div>
+                      )}
+                      
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        className="text-destructive hover:text-destructive/90"
+                        onClick={() => handleDelete(index, categories, setCategories)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -387,60 +382,58 @@ export default function SettingsPage() {
                 </Button>
               </div>
               
-              <ScrollArea className="h-[400px] pr-4">
-                <div className="space-y-2">
-                  {descriptions.map((description, index) => (
-                    <div 
-                      key={index} 
-                      className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/20"
-                    >
+              <div className="space-y-2">
+                {descriptions.map((description, index) => (
+                  <div 
+                    key={index} 
+                    className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/20"
+                  >
+                    {editingDescription && editingDescription.index === index ? (
+                      <Input
+                        value={editingDescription.value}
+                        onChange={(e) => setEditingDescription({ ...editingDescription, value: e.target.value })}
+                        autoFocus
+                      />
+                    ) : (
+                      <span>{description}</span>
+                    )}
+                    
+                    <div className="flex gap-2">
                       {editingDescription && editingDescription.index === index ? (
-                        <Input
-                          value={editingDescription.value}
-                          onChange={(e) => setEditingDescription({ ...editingDescription, value: e.target.value })}
-                          autoFocus
-                        />
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleSaveEdit(
+                            editingDescription.value, 
+                            descriptions, 
+                            setDescriptions, 
+                            editingDescription, 
+                            setEditingDescription
+                          )}
+                        >
+                          Save
+                        </Button>
                       ) : (
-                        <span>{description}</span>
-                      )}
-                      
-                      <div className="flex gap-2">
-                        {editingDescription && editingDescription.index === index ? (
-                          <Button 
-                            size="sm" 
-                            onClick={() => handleSaveEdit(
-                              editingDescription.value, 
-                              descriptions, 
-                              setDescriptions, 
-                              editingDescription, 
-                              setEditingDescription
-                            )}
-                          >
-                            Save
-                          </Button>
-                        ) : (
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            onClick={() => handleStartEdit(index, description, setEditingDescription)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        )}
-                        
                         <Button 
                           size="sm" 
                           variant="ghost" 
-                          className="text-destructive hover:text-destructive/90"
-                          onClick={() => handleDelete(index, descriptions, setDescriptions)}
+                          onClick={() => handleStartEdit(index, description, setEditingDescription)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Edit className="h-4 w-4" />
                         </Button>
-                      </div>
+                      )}
+                      
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        className="text-destructive hover:text-destructive/90"
+                        onClick={() => handleDelete(index, descriptions, setDescriptions)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

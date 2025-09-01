@@ -32,7 +32,8 @@ const transactionTypeLabels = {
 };
 
 export default function TransactionsPage() {
-  const [progress, setProgress] = useState<number | null>(null);
+  const [importPhase, setImportPhase] = useState<'uploading' | 'processing' | null>(null);
+  const [progressDetails, setProgressDetails] = useState<{ processed: number; total: number; created: number; skipped: number } | null>(null);
   const [importSummary, setImportSummary] = useState<null | { created: number; skipped: number; reasons: string[] }>(null);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -174,8 +175,9 @@ export default function TransactionsPage() {
     }
 
   setUploading(true);
-  setProgress(0);
   setImportSummary(null);
+  setImportPhase('uploading');
+  setProgressDetails(null);
     try {
       const text = await file.text();
       console.log('File content:', text.substring(0, 500) + '...');
@@ -191,6 +193,8 @@ export default function TransactionsPage() {
         });
         return;
       }
+
+      setImportPhase('processing');
 
       // Process each row and create transactions
       const uploadedTransactions = [];
@@ -226,38 +230,89 @@ export default function TransactionsPage() {
         } else {
           uploadedTransactions.push(transaction);
         }
-        setProgress(Math.round((uploadedTransactions.length + skippedTransactions.length) / csvData.length * 100));
+        // Update progress details during local processing
+        setProgressDetails({
+          processed: uploadedTransactions.length + skippedTransactions.length,
+          total: csvData.length,
+          created: uploadedTransactions.length,
+          skipped: skippedTransactions.length
+        });
       }
 
-      // Send to API
-      console.log('Sending transactions to API:', uploadedTransactions);
+      // Generate unique job ID
+      const jobId = `import_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+      
+      // Send to API with job ID
+      console.log('Sending transactions to API:', uploadedTransactions.length, 'transactions with jobId:', jobId);
       const response = await fetch('/api/transactions/bulk', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ transactions: uploadedTransactions }),
+        body: JSON.stringify({ transactions: uploadedTransactions, jobId }),
       });
 
-      const responseData = await response.json();
-      console.log('API response:', response.status, responseData);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to start import process');
+      }
 
-      const toastDescription = `Successfully imported ${responseData.count} transactions.`;
-      const reasons = skippedTransactions.map((skipped, idx) => `${idx + 1}. ${skipped.reason}`);
-      setImportSummary({
-        created: responseData.count,
-        skipped: skippedTransactions.length,
-        reasons,
-      });
-      setProgress(null);
-      if (response.ok) {
-        toast({
-          title: "Upload successful",
-          description: toastDescription,
-        });
-        fetchTransactions();
-      } else {
-        throw new Error(responseData.error || 'Failed to upload transactions');
+      // Start polling for progress
+      let completed = false;
+      const startTime = Date.now();
+      const maxWaitTime = 5 * 60 * 1000; // 5 minutes timeout
+
+      while (!completed && (Date.now() - startTime) < maxWaitTime) {
+        try {
+          const progressResponse = await fetch(`/api/transactions/bulk?jobId=${jobId}`);
+          
+          if (progressResponse.ok) {
+            const progressData = await progressResponse.json();
+            console.log('Progress data:', progressData);
+            
+            // Update progress details from API
+            
+            setProgressDetails({
+              processed: progressData.processed,
+              total: progressData.total,
+              created: progressData.created,
+              skipped: progressData.skipped
+            });
+            
+            if (progressData.completed) {
+              completed = true;
+              
+              const reasons = skippedTransactions.map((skipped, idx) => `${idx + 1}. ${skipped.reason}`);
+              setImportSummary({
+                created: progressData.created,
+                skipped: progressData.skipped + skippedTransactions.length,
+                reasons,
+              });
+              
+              const toastDescription = `Successfully imported ${progressData.created} transactions.`;
+              toast({
+                title: "Import successful",
+                description: toastDescription,
+              });
+              
+              fetchTransactions();
+            } else if (progressData.error) {
+              throw new Error(progressData.error);
+            }
+          }
+        } catch (pollError) {
+          console.error('Error polling progress:', pollError);
+          // Continue polling unless it's a critical error
+        }
+        
+        // Wait before next poll
+        if (!completed) {
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Poll every second
+        }
+      }
+      
+      if (!completed) {
+        throw new Error('Import process timed out');
       }
     } catch (error) {
       console.error('Error uploading CSV:', error);
@@ -267,10 +322,11 @@ export default function TransactionsPage() {
         variant: "destructive",
       });
     } finally {
-  setUploading(false);
-  setProgress(null);
-  // Reset the input
-  event.target.value = '';
+      setUploading(false);
+      setImportPhase(null);
+      setProgressDetails(null);
+      // Reset the input
+      event.target.value = '';
     }
   };
 
@@ -433,7 +489,7 @@ export default function TransactionsPage() {
             onClick={handleButtonClick}
           >
             <Upload className="h-4 w-4" />
-            {uploading ? 'Uploading...' : 'Import CSV'}
+            {uploading ? (importPhase === 'uploading' ? 'Processing...' : 'Importing...') : 'Import CSV'}
           </Button>
           <Button variant="outline" onClick={handleDownloadTemplate} className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
@@ -452,16 +508,18 @@ export default function TransactionsPage() {
         </div>
       </div>
       
-      {/* Progress and Import Summary */}
-      {progress !== null && (
-        <div className="w-full flex flex-col items-center my-4">
-          <div className="w-1/2 bg-gray-200 rounded-full h-4">
-            <div
-              className="bg-blue-500 h-4 rounded-full transition-all"
-              style={{ width: `${progress}%` }}
-            />
+      {/* Import Status */}
+      {uploading && (
+        <div className="w-full flex justify-center items-center my-6">
+          <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+            <div className="text-sm">
+              <div className="font-medium text-blue-900 dark:text-blue-100">
+                {importPhase === 'uploading' ? 'Processing CSV file...' : 
+                 importPhase === 'processing' && progressDetails ? `Saving ${progressDetails.total} transactions to database...` : 'Importing...'}
+              </div>
+            </div>
           </div>
-          <span className="mt-2 text-sm text-gray-700">Importing CSV... {progress}%</span>
         </div>
       )}
       {importSummary && (

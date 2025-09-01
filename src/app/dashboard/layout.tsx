@@ -4,7 +4,7 @@ import { AuthButton } from "@/components/auth/AuthButton";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart, Home, Settings, Clock, DollarSign, PieChart, TrendingUp, Menu, X } from "lucide-react";
+import { BarChart, Home, Settings, Clock, DollarSign, PieChart, TrendingUp, ChevronRight, ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -137,7 +137,7 @@ export default function DashboardLayout({
             className="hidden md:flex -ml-1"
             onClick={() => setSidebarOpen(!sidebarOpen)}
           >
-            {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            {sidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </Button>
           
           {/* Mobile Logo */}
