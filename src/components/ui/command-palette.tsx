@@ -18,9 +18,6 @@ import {
   Settings,
   TrendingUp,
   Plus,
-  FileText,
-  Target,
-  Calculator,
 } from "lucide-react";
 
 interface CommandItem {
@@ -103,6 +100,11 @@ export function CommandPalette() {
     // Detect platform on client side
     setIsMac(navigator.platform.includes("Mac"));
     
+    const handleSelect = (path: string) => {
+      setOpen(false);
+      router.push(path);
+    };
+    
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
@@ -128,7 +130,7 @@ export function CommandPalette() {
 
     document.addEventListener("keydown", down);
     return () => document.removeEventListener("keydown", down);
-  }, [open]);
+  }, [open, router]);
 
   const handleSelect = (path: string) => {
     setOpen(false);
