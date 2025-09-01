@@ -179,7 +179,7 @@ export function EditTransactionDialog({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="type">Type</Label>
-              <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value as any })}>
+              <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value as 'EXPENSE' | 'INCOME' | 'EXPENSE_SAVINGS' | 'RETURN' })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>

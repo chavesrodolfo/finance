@@ -14,9 +14,11 @@ const updateTransactionSchema = z.object({
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
+    
     // Get the authenticated user
     const stackUser = await stackServerApp.getUser()
     if (!stackUser) {
@@ -37,7 +39,7 @@ export async function PUT(
     // Verify category belongs to user if categoryId is being updated
     if (validatedData.categoryId) {
       const userCategories = await getUserCategories(dbUser.id)
-      const categoryExists = userCategories.some((cat: any) => cat.id === validatedData.categoryId)
+      const categoryExists = userCategories.some((cat: { id: string }) => cat.id === validatedData.categoryId)
       
       if (!categoryExists) {
         return NextResponse.json({ error: 'Invalid category' }, { status: 400 })
@@ -65,9 +67,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
+    
     // Get the authenticated user
     const stackUser = await stackServerApp.getUser()
     if (!stackUser) {
