@@ -28,7 +28,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await initializeUserData(user.id, user.primaryEmail!, user.displayName);
+    await initializeUserData(user.id, user.primaryEmail!, user.displayName || undefined);
 
     const budgets = await prisma.budget.findMany({
       where: {
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await initializeUserData(user.id, user.primaryEmail!, user.displayName);
+    await initializeUserData(user.id, user.primaryEmail!, user.displayName || undefined);
 
     const body = await request.json();
     const validatedData = CreateBudgetSchema.parse(body);
