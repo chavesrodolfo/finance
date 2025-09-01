@@ -106,15 +106,19 @@ export default function Dashboard() {
     .reduce((sum, t) => sum + t.amount, 0);
 
   const totalExpenses = currentMonthTransactions
-    .filter(t => t.type === 'EXPENSE' || t.type === 'EXPENSE_SAVINGS')
+    .filter(t => t.type === 'EXPENSE')
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
-  const balance = totalIncome - totalExpenses;
+  const totalExpenseSavings = currentMonthTransactions
+    .filter(t => t.type === 'EXPENSE_SAVINGS')
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
-  // Get recent transactions (last 4)
+  const balance = totalIncome - totalExpenses - totalExpenseSavings;
+
+  // Get recent transactions (last 5)
   const recentTransactions = transactions
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 4);
+    .slice(0, 5);
 
   // Calculate budget summary
   const totalBudget = budgetItems.reduce((sum, item) => sum + item.amount, 0);
@@ -125,8 +129,16 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="space-y-8">
+        {/* Month indicator */}
+        <div>
+          <h2 className="text-2xl font-bold text-foreground">
+            {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} Overview
+          </h2>
+        </div>
+        
         {/* Key metrics skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <MetricCardSkeleton />
           <MetricCardSkeleton />
           <MetricCardSkeleton />
           <MetricCardSkeleton />
@@ -143,8 +155,15 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
+      {/* Month indicator */}
+      <div>
+        <h2 className="text-2xl font-bold text-foreground">
+          {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} Overview
+        </h2>
+      </div>
+
       {/* Key metrics section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-card/50 backdrop-blur-sm border-border/20">
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
@@ -192,26 +211,37 @@ export default function Dashboard() {
             <p className="text-sm text-muted-foreground mt-1">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
           </div>
         </Card>
+        
+        <Card className="bg-card/50 backdrop-blur-sm border-border/20">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-foreground">Expense Savings</h3>
+              <div className="bg-muted/30 p-2 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-muted-foreground">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 6v6l4 2" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-3xl font-bold text-orange-400">${totalExpenseSavings.toFixed(2)}</p>
+            <p className="text-sm text-muted-foreground mt-1">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+          </div>
+        </Card>
       </div>
     
       {/* Transactions and budget section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="bg-card/50 backdrop-blur-sm border-border/20">
-          <div className="p-6 flex flex-col h-full">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-medium text-foreground">Recent Transactions</h3>
-              <select className="text-sm rounded-md px-3 py-1 bg-muted/30 border border-border/30 text-foreground">
-                <option>Last 7 days</option>
-                <option>Last 30 days</option>
-                <option>This month</option>
-              </select>
+          <div className="p-4 flex flex-col h-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-medium text-foreground">Recent Transactions</h3>
             </div>
-            <div className="space-y-4 flex-grow">
+            <div className="space-y-3 flex-grow">
               {recentTransactions.length === 0 ? (
-                <div className="text-center py-4 text-muted-foreground">No recent transactions</div>
+                <div className="text-center py-3 text-muted-foreground">No recent transactions</div>
               ) : (
                 recentTransactions.map((transaction) => (
-                  <div key={transaction.id} className="flex justify-between items-center p-3 rounded-lg hover:bg-muted/10 transition-colors">
+                  <div key={transaction.id} className="flex justify-between items-center p-2 rounded-lg hover:bg-muted/10 transition-colors">
                     <div className="flex items-center gap-3">
                       {(() => {
                         const IconComponent = iconMap[transaction.category.icon || "Tag"];
@@ -250,20 +280,20 @@ export default function Dashboard() {
         </Card>
         
         <Card className="bg-card/50 backdrop-blur-sm border-border/20">
-          <div className="p-6 flex flex-col h-full">
-            <div className="mb-6">
-              <h3 className="text-lg font-medium text-foreground">Monthly Budget</h3>
+          <div className="p-4 flex flex-col h-full">
+            <div className="mb-4">
+              <h3 className="text-base font-medium text-foreground">Monthly Budget</h3>
             </div>
-            <div className="space-y-5 flex-grow">
+            <div className="space-y-3 flex-grow">
               {budgetItems.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="text-center py-6">
+                  <div className="mb-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-medium mb-2">No Budget Set Up</h3>
-                  <p className="text-muted-foreground mb-4">
+                  <h3 className="text-base font-medium mb-2">No Budget Set Up</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
                     Create your monthly budget to track spending and financial goals.
                   </p>
                 </div>
@@ -273,9 +303,9 @@ export default function Dashboard() {
                     <p className="text-3xl font-bold text-foreground">{formatCurrency(totalBudget)}</p>
                   </div>
                   
-                  <div className="pt-4 border-t border-border/30">
-                    <h4 className="text-lg font-medium mb-4 text-foreground">Top Expenses</h4>
-                    <div className="space-y-4">
+                  <div className="pt-3 border-t border-border/30">
+                    <h4 className="text-base font-medium mb-3 text-foreground">Top Expenses</h4>
+                    <div className="space-y-3">
                       {topBudgetItems.map((item, index) => (
                         <div key={item.id} className="group">
                           <div className="flex justify-between text-sm mb-1">
@@ -283,7 +313,7 @@ export default function Dashboard() {
                             <span className="text-muted-foreground">{((item.amount / totalBudget) * 100).toFixed(1)}%</span>
                           </div>
                           <div className="flex items-center">
-                            <div className="w-full h-6 bg-muted/30 rounded-md overflow-hidden">
+                            <div className="w-full h-4 bg-muted/30 rounded-md overflow-hidden">
                               <div 
                                 className={`h-full rounded-md ${
                                   index === 0 ? "bg-blue-500" :
@@ -305,7 +335,7 @@ export default function Dashboard() {
                   </div>
                   
                   {budgetItems.length > 0 && (
-                    <div className="pt-4 border-t border-border/30">
+                    <div className="pt-3 border-t border-border/30">
                       <div className="flex justify-between items-center">
                         <span className="font-medium text-foreground">Total Spent</span>
                         <span className="font-bold text-lg text-foreground">${totalExpenses.toFixed(2)}</span>

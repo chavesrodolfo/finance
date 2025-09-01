@@ -100,6 +100,59 @@ export async function createTransaction(data: {
   })
 }
 
+export async function updateTransaction(
+  transactionId: string,
+  userId: string,
+  data: {
+    amount?: number
+    description?: string
+    notes?: string
+    date?: Date
+    type?: 'EXPENSE' | 'INCOME' | 'EXPENSE_SAVINGS' | 'RETURN'
+    categoryId?: string
+  }
+) {
+  // First verify the transaction belongs to the user
+  const existingTransaction = await prisma.transaction.findFirst({
+    where: {
+      id: transactionId,
+      userId: userId
+    }
+  })
+
+  if (!existingTransaction) {
+    return null
+  }
+
+  return await prisma.transaction.update({
+    where: { id: transactionId },
+    data,
+    include: {
+      category: true
+    }
+  })
+}
+
+export async function deleteTransaction(transactionId: string, userId: string) {
+  // First verify the transaction belongs to the user
+  const existingTransaction = await prisma.transaction.findFirst({
+    where: {
+      id: transactionId,
+      userId: userId
+    }
+  })
+
+  if (!existingTransaction) {
+    return false
+  }
+
+  await prisma.transaction.delete({
+    where: { id: transactionId }
+  })
+
+  return true
+}
+
 export async function getUserCategories(userId: string) {
   return await prisma.category.findMany({
     where: { userId },

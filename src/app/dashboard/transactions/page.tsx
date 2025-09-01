@@ -5,11 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
-import { ChevronLeft, ChevronRight, Plus, Filter, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Filter, Upload, Edit, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { TransactionActions } from "@/components/transactions/actions-dropdown";
+import { EditTransactionDialog } from "@/components/transactions/edit-transaction-dialog";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { iconMap } from "@/lib/category-icons";
 
 interface Transaction {
@@ -27,6 +29,13 @@ interface Transaction {
   };
 }
 
+interface Category {
+  id: string;
+  name: string;
+  color?: string;
+  icon?: string;
+}
+
 const transactionTypeLabels = {
   "EXPENSE": "Expense",
   "INCOME": "Income",
@@ -42,9 +51,14 @@ export default function TransactionsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  
+  // Edit and delete state
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
 
   const handleButtonClick = () => {
     console.log('Button clicked');
@@ -82,9 +96,63 @@ export default function TransactionsPage() {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/categories');
+      if (response.ok) {
+        const data = await response.json();
+        setCategories(data);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
   useEffect(() => {
     fetchTransactions();
+    fetchCategories();
   }, []);
+
+  const handleEditTransaction = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+  };
+
+  const handleDeleteTransaction = async () => {
+    if (!deletingTransaction) return;
+
+    try {
+      const response = await fetch(`/api/transactions/${deletingTransaction.id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Transaction deleted successfully",
+        });
+        fetchTransactions();
+        setDeletingTransaction(null);
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Error",
+          description: error.error || "Failed to delete transaction",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete transaction",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleTransactionUpdated = () => {
+    fetchTransactions();
+  };
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -662,14 +730,14 @@ export default function TransactionsPage() {
                   .map((transaction) => (
                     <div 
                       key={transaction.id} 
-                      className="flex justify-between items-center p-4 hover:bg-muted/20 transition-colors"
+                      className="flex justify-between items-center p-4 hover:bg-muted/20 transition-colors group"
                     >
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-4 flex-1">
                         {(() => {
                           const IconComponent = iconMap[transaction.category.icon || "Tag"];
                           return <IconComponent className="h-5 w-5 text-muted-foreground flex-shrink-0" />;
                         })()}
-                        <div>
+                        <div className="flex-1">
                           <div className="font-medium">{transaction.description}</div>
                           <div className="text-xs text-muted-foreground">
                             {format(new Date(transaction.date), "dd/MM/yyyy")} • {transaction.category.name} • {transactionTypeLabels[transaction.type]}
@@ -679,14 +747,36 @@ export default function TransactionsPage() {
                           )}
                         </div>
                       </div>
-                      <div 
-                        className={`font-medium ${
-                          transaction.type === 'INCOME' 
-                            ? 'text-emerald-500' 
-                            : 'text-rose-500'
-                        }`}
-                      >
-                        {transaction.type === 'INCOME' ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount))}
+                      
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className={`font-medium ${
+                            transaction.type === 'INCOME' 
+                              ? 'text-emerald-500' 
+                              : 'text-rose-500'
+                          }`}
+                        >
+                          {transaction.type === 'INCOME' ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount))}
+                        </div>
+                        
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditTransaction(transaction)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeletingTransaction(transaction)}
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -711,6 +801,28 @@ export default function TransactionsPage() {
           </div>
         )}
       </Card>
+
+      {/* Edit Transaction Dialog */}
+      <EditTransactionDialog
+        open={!!editingTransaction}
+        onOpenChange={(open) => !open && setEditingTransaction(null)}
+        transaction={editingTransaction}
+        categories={categories}
+        onTransactionUpdated={handleTransactionUpdated}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={!!deletingTransaction}
+        onOpenChange={(open) => !open && setDeletingTransaction(null)}
+        title="Delete Transaction"
+        description={`Are you sure you want to delete the transaction "${deletingTransaction?.description}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDeleteTransaction}
+        isDestructive={true}
+        isLoading={false}
+      />
     </div>
   );
 } 

@@ -37,11 +37,11 @@ export function TransactionActions({
     <div className="relative">
       {/* Main button group */}
       <div className="flex">
-        {/* Primary action - New Transaction */}
+        {/* Primary action - New */}
         <Link href="/dashboard/transactions/new">
           <Button className="rounded-r-none border-r border-primary/20">
             <Plus className="h-4 w-4 mr-2" />
-            New Transaction
+            New
           </Button>
         </Link>
         
