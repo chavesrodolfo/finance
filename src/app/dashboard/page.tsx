@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, TrendingUp, CircleDollarSign, ChevronLeft, ChevronRight } from "lucide-react";
 import { useHideValues } from "@/hooks/use-hide-values";
 import { convertToCAD } from "@/lib/currency";
-import { useExchangeRates } from "@/hooks/use-exchange-rates";
 
 interface Transaction {
   id: string;
@@ -57,7 +56,6 @@ export default function Dashboard() {
   const [investmentAccounts, setInvestmentAccounts] = useState<InvestmentAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const { hideValues, toggleHideValues, formatValue, isLoaded } = useHideValues();
-  const { rates } = useExchangeRates();
 
   // State for card flip functionality
   const [flippedCards, setFlippedCards] = useState<{income: boolean, expenses: boolean}>({
