@@ -126,10 +126,6 @@ export default function Dashboard() {
     return sum + convertedValue;
   }, 0);
 
-  const averageMonthlyReturn = investmentAccounts.length > 0 
-    ? investmentAccounts.reduce((sum, account) => sum + account.monthlyReturnPercent, 0) / investmentAccounts.length
-    : 0;
-
   const averageAnnualReturn = investmentAccounts.length > 0 
     ? investmentAccounts.reduce((sum, account) => sum + account.annualReturnPercent, 0) / investmentAccounts.length
     : 0;
@@ -205,7 +201,9 @@ export default function Dashboard() {
               <TrendingUp className="h-6 w-6 text-green-500" />
             </div>
             <div>
-              <p className="text-sm text-gray-400">Monthly Income</p>
+              <p className="text-sm text-gray-400">
+                {new Date().toLocaleDateString('en-US', { month: 'long' })} Income
+              </p>
               <p className="text-2xl font-bold text-green-400">
                 {formatValue(formatCurrency(monthlyIncome))}
               </p>
@@ -219,7 +217,9 @@ export default function Dashboard() {
               <CircleDollarSign className="h-6 w-6 text-red-500" />
             </div>
             <div>
-              <p className="text-sm text-gray-400">Monthly Expenses</p>
+              <p className="text-sm text-gray-400">
+                {new Date().toLocaleDateString('en-US', { month: 'long' })} Expenses
+              </p>
               <p className="text-2xl font-bold text-red-400">
                 {formatValue(formatCurrency(monthlyExpenses))}
               </p>
@@ -390,27 +390,33 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Top Accounts */}
+                {/* Top Accounts by Balance */}
                 <div className="space-y-3">
-                  {investmentAccounts.slice(0, 3).map((account) => {
-                    const convertedValue = convertToCAD(account.currentValue, account.currency, rates);
-                    return (
-                      <div key={account.id} className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">{account.name}</p>
-                          <p className="text-sm text-gray-400">{account.accountType}</p>
+                  {investmentAccounts
+                    .map(account => ({
+                      ...account,
+                      convertedValue: convertToCAD(account.currentValue, account.currency, rates)
+                    }))
+                    .sort((a, b) => b.convertedValue - a.convertedValue)
+                    .slice(0, 3)
+                    .map((account) => {
+                      return (
+                        <div key={account.id} className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">{account.name}</p>
+                            <p className="text-sm text-gray-400">{account.accountType}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold text-purple-400">
+                              {formatValue(formatCurrency(account.convertedValue))}
+                            </p>
+                            <p className="text-sm text-green-400">
+                              {hideValues ? "••••%" : `+${account.monthlyReturnPercent.toFixed(2)}%`}
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-purple-400">
-                            {formatValue(formatCurrency(convertedValue))}
-                          </p>
-                          <p className="text-sm text-green-400">
-                            {hideValues ? "••••%" : `+${account.monthlyReturnPercent.toFixed(2)}%`}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                 </div>
               </div>
             ) : (
