@@ -9,7 +9,7 @@ import { MetricCardSkeleton, TransactionListSkeleton, BudgetCardSkeleton, Invest
 import { formatCurrency } from "@/lib/utils";
 import { iconMap } from "@/lib/category-icons";
 import { Button } from "@/components/ui/button";
-import { Eye, EyeOff, TrendingUp, CircleDollarSign } from "lucide-react";
+import { Eye, EyeOff, TrendingUp, CircleDollarSign, ChevronLeft, ChevronRight } from "lucide-react";
 import { useHideValues } from "@/hooks/use-hide-values";
 import { convertToCAD } from "@/lib/currency";
 import { useExchangeRates } from "@/hooks/use-exchange-rates";
@@ -58,6 +58,16 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const { hideValues, toggleHideValues, formatValue, isLoaded } = useHideValues();
   const { rates } = useExchangeRates();
+
+  // State for card flip functionality
+  const [flippedCards, setFlippedCards] = useState<{income: boolean, expenses: boolean}>({
+    income: false,
+    expenses: false
+  });
+  const [selectedMonths, setSelectedMonths] = useState<{income: Date, expenses: Date}>({
+    income: new Date(),
+    expenses: new Date()
+  });
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -122,13 +132,59 @@ export default function Dashboard() {
 
   // Calculate totals for investments
   const totalInvestments = investmentAccounts.reduce((sum, account) => {
-    const convertedValue = convertToCAD(account.currentValue, account.currency, rates);
+    const convertedValue = convertToCAD(account.currentValue, account.currency);
     return sum + convertedValue;
   }, 0);
 
   const averageAnnualReturn = investmentAccounts.length > 0 
     ? investmentAccounts.reduce((sum, account) => sum + account.annualReturnPercent, 0) / investmentAccounts.length
     : 0;
+
+  // Helper functions for card flip functionality
+  const calculateMonthlyAmount = (month: Date, type: 'INCOME' | 'EXPENSE') => {
+    const monthTransactions = transactions.filter(t => {
+      const transactionDate = new Date(t.date);
+      return transactionDate.getMonth() === month.getMonth() && 
+             transactionDate.getFullYear() === month.getFullYear();
+    });
+
+    return monthTransactions
+      .filter(t => t.type === type)
+      .reduce((sum, t) => sum + t.amount, 0);
+  };
+
+  const handleCardClick = (cardType: 'income' | 'expenses') => {
+    setFlippedCards(prev => ({
+      ...prev,
+      [cardType]: !prev[cardType]
+    }));
+  };
+
+  const handleMonthChange = (cardType: 'income' | 'expenses', direction: 'prev' | 'next') => {
+    setSelectedMonths(prev => {
+      const currentMonth = new Date(prev[cardType]);
+      const newMonth = new Date(currentMonth);
+      
+      if (direction === 'prev') {
+        newMonth.setMonth(currentMonth.getMonth() - 1);
+      } else {
+        newMonth.setMonth(currentMonth.getMonth() + 1);
+      }
+      
+      return {
+        ...prev,
+        [cardType]: newMonth
+      };
+    });
+    
+    // Auto-flip back to front after changing month
+    setTimeout(() => {
+      setFlippedCards(prev => ({
+        ...prev,
+        [cardType]: false
+      }));
+    }, 300);
+  };
 
   // Calculate totals for dashboard cards
   const currentMonthTransactions = transactions.filter(t => {
@@ -138,13 +194,30 @@ export default function Dashboard() {
            transactionDate.getFullYear() === now.getFullYear();
   });
 
-  const monthlyIncome = currentMonthTransactions
-    .filter(t => t.type === 'INCOME')
-    .reduce((sum, t) => sum + t.amount, 0);
+  // Calculate income and expenses based on whether a custom month is selected
+  const hasCustomIncomeMonth = selectedMonths.income.getMonth() !== new Date().getMonth() || 
+                               selectedMonths.income.getFullYear() !== new Date().getFullYear();
+  const hasCustomExpensesMonth = selectedMonths.expenses.getMonth() !== new Date().getMonth() || 
+                                selectedMonths.expenses.getFullYear() !== new Date().getFullYear();
 
-  const monthlyExpenses = currentMonthTransactions
-    .filter(t => t.type === 'EXPENSE')
-    .reduce((sum, t) => sum + t.amount, 0);
+  const monthlyIncome = hasCustomIncomeMonth
+    ? calculateMonthlyAmount(selectedMonths.income, 'INCOME')
+    : currentMonthTransactions.filter(t => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0);
+
+  const monthlyExpenses = hasCustomExpensesMonth
+    ? calculateMonthlyAmount(selectedMonths.expenses, 'EXPENSE')
+    : currentMonthTransactions.filter(t => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amount, 0);
+
+  // Get the display month for each card
+  const getDisplayMonth = (cardType: 'income' | 'expenses') => {
+    if (cardType === 'income' && hasCustomIncomeMonth) {
+      return selectedMonths.income;
+    }
+    if (cardType === 'expenses' && hasCustomExpensesMonth) {
+      return selectedMonths.expenses;
+    }
+    return new Date();
+  };
 
   const totalBudget = budgetItems.reduce((sum, item) => sum + item.amount, 0);
 
@@ -195,38 +268,115 @@ export default function Dashboard() {
 
       {/* Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="p-6 glassmorphism">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-green-500/20 rounded-lg">
-              <TrendingUp className="h-6 w-6 text-green-500" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">
-                {new Date().toLocaleDateString('en-US', { month: 'long' })} Income
-              </p>
-              <p className="text-2xl font-bold text-green-400">
-                {formatValue(formatCurrency(monthlyIncome))}
-              </p>
-            </div>
+        {/* Income Card with Flip */}
+        <div className={`flip-card ${flippedCards.income ? 'flipped' : ''}`}>
+          <div className="flip-card-inner">
+            {/* Front Side */}
+            <Card className="p-6 glassmorphism flip-card-front cursor-pointer h-full" onClick={() => handleCardClick('income')}>
+              <div className="flex items-center space-x-4 h-full">
+                <div className="p-3 bg-green-500/20 rounded-lg">
+                  <TrendingUp className="h-6 w-6 text-green-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-400">
+                    {getDisplayMonth('income').toLocaleDateString('en-US', { month: 'long', year: hasCustomIncomeMonth ? 'numeric' : undefined })} Income
+                  </p>
+                  <p className="text-2xl font-bold text-green-400">
+                    {formatValue(formatCurrency(monthlyIncome))}
+                  </p>
+                </div>
+              </div>
+            </Card>
+            
+            {/* Back Side - Month Selector */}
+            <Card className="p-6 glassmorphism flip-card-back h-full cursor-pointer" onClick={() => handleCardClick('income')}>
+              <div className="flex flex-col h-full justify-center space-y-4">
+                <h3 className="text-lg font-semibold">Select Month</h3>
+                <div className="flex items-center justify-between">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMonthChange('income', 'prev');
+                    }}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm font-medium">
+                    {selectedMonths.income.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMonthChange('income', 'next');
+                    }}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
           </div>
-        </Card>
+        </div>
 
-        <Card className="p-6 glassmorphism">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-red-500/20 rounded-lg">
-              <CircleDollarSign className="h-6 w-6 text-red-500" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">
-                {new Date().toLocaleDateString('en-US', { month: 'long' })} Expenses
-              </p>
-              <p className="text-2xl font-bold text-red-400">
-                {formatValue(formatCurrency(monthlyExpenses))}
-              </p>
-            </div>
+        {/* Expenses Card with Flip */}
+        <div className={`flip-card ${flippedCards.expenses ? 'flipped' : ''}`}>
+          <div className="flip-card-inner">
+            {/* Front Side */}
+            <Card className="p-6 glassmorphism flip-card-front cursor-pointer h-full" onClick={() => handleCardClick('expenses')}>
+              <div className="flex items-center space-x-4 h-full">
+                <div className="p-3 bg-red-500/20 rounded-lg">
+                  <CircleDollarSign className="h-6 w-6 text-red-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-400">
+                    {getDisplayMonth('expenses').toLocaleDateString('en-US', { month: 'long', year: hasCustomExpensesMonth ? 'numeric' : undefined })} Expenses
+                  </p>
+                  <p className="text-2xl font-bold text-red-400">
+                    {formatValue(formatCurrency(monthlyExpenses))}
+                  </p>
+                </div>
+              </div>
+            </Card>
+            
+            {/* Back Side - Month Selector */}
+            <Card className="p-6 glassmorphism flip-card-back h-full cursor-pointer" onClick={() => handleCardClick('expenses')}>
+              <div className="flex flex-col h-full justify-center space-y-4">
+                <h3 className="text-lg font-semibold">Select Month</h3>
+                <div className="flex items-center justify-between">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMonthChange('expenses', 'prev');
+                    }}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm font-medium">
+                    {selectedMonths.expenses.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMonthChange('expenses', 'next');
+                    }}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
           </div>
-        </Card>
+        </div>
 
+        {/* Total Budget Card */}
         <Card className="p-6 glassmorphism">
           <div className="flex items-center space-x-4">
             <div className="p-3 bg-blue-500/20 rounded-lg">
@@ -241,6 +391,7 @@ export default function Dashboard() {
           </div>
         </Card>
 
+        {/* Total Investments Card */}
         <Card className="p-6 glassmorphism">
           <div className="flex items-center space-x-4">
             <div className="p-3 bg-purple-500/20 rounded-lg">
@@ -403,7 +554,7 @@ export default function Dashboard() {
                   {investmentAccounts
                     .map(account => ({
                       ...account,
-                      convertedValue: convertToCAD(account.currentValue, account.currency, rates)
+                      convertedValue: convertToCAD(account.currentValue, account.currency)
                     }))
                     .sort((a, b) => b.convertedValue - a.convertedValue)
                     .slice(0, 3)
