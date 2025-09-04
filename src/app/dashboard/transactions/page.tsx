@@ -663,32 +663,53 @@ export default function TransactionsPage() {
       
       {/* Month summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-blue-50/10">
+        <Card className="bg-card/50 backdrop-blur-sm border-border/20">
           <CardContent className="p-6">
-            <div className="flex flex-col">
-              <span className="text-sm text-muted-foreground">Income</span>
-              <span className="text-2xl font-bold text-emerald-500">+{formatCurrency(totalIncome)}</span>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-foreground">Income</h3>
+              <div className="bg-muted/30 p-2 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-muted-foreground">
+                  <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+                  <polyline points="16 7 22 7 22 13" />
+                </svg>
+              </div>
             </div>
+            <p className="text-3xl font-bold text-emerald-400">+{formatCurrency(totalIncome)}</p>
+            <p className="text-sm text-muted-foreground mt-1">{format(currentDate, "MMMM yyyy")}</p>
           </CardContent>
         </Card>
         
-        <Card className="bg-blue-50/10">
+        <Card className="bg-card/50 backdrop-blur-sm border-border/20">
           <CardContent className="p-6">
-            <div className="flex flex-col">
-              <span className="text-sm text-muted-foreground">Expenses</span>
-              <span className="text-2xl font-bold text-rose-500">-{formatCurrency(totalExpenses)}</span>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-foreground">Expenses</h3>
+              <div className="bg-muted/30 p-2 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-muted-foreground">
+                  <polyline points="22 17 13.5 8.5 8.5 13.5 2 7" />
+                  <polyline points="16 17 22 17 22 11" />
+                </svg>
+              </div>
             </div>
+            <p className="text-3xl font-bold text-red-400">-{formatCurrency(totalExpenses)}</p>
+            <p className="text-sm text-muted-foreground mt-1">{format(currentDate, "MMMM yyyy")}</p>
           </CardContent>
         </Card>
         
-        <Card className="bg-blue-50/10">
+        <Card className="bg-card/50 backdrop-blur-sm border-border/20">
           <CardContent className="p-6">
-            <div className="flex flex-col">
-              <span className="text-sm text-muted-foreground">Balance</span>
-              <span className={`text-2xl font-bold ${balance >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                {balance >= 0 ? '+' : '-'}{formatCurrency(Math.abs(balance))}
-              </span>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-foreground">Balance</h3>
+              <div className="bg-muted/30 p-2 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-muted-foreground">
+                  <rect x="2" y="5" width="20" height="14" rx="2" />
+                  <line x1="2" y1="10" x2="22" y2="10" />
+                </svg>
+              </div>
             </div>
+            <p className={`text-3xl font-bold ${balance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {balance >= 0 ? '+' : '-'}{formatCurrency(Math.abs(balance))}
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">Current balance</p>
           </CardContent>
         </Card>
       </div>

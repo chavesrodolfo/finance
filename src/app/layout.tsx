@@ -38,8 +38,8 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="bg-gradient-radial from-primary/5 via-transparent to-transparent fixed inset-0 h-screen w-screen -z-10"></div>
-          <div className="noise-pattern fixed inset-0 h-screen w-screen opacity-30 -z-10"></div>
+          <div className="bg-gradient-radial from-primary/8 via-primary/3 to-transparent fixed inset-0 h-screen w-screen -z-10 dark:from-primary/6 dark:via-primary/2 dark:to-transparent"></div>
+          <div className="noise-pattern fixed inset-0 h-screen w-screen opacity-20 -z-10 dark:opacity-40"></div>
           <StackProvider app={stackServerApp}>
             <StackTheme>
               {children}
