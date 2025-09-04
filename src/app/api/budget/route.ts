@@ -12,14 +12,6 @@ const CreateBudgetSchema = z.object({
   endDate: z.string().transform((str) => new Date(str)).optional(),
 });
 
-// const UpdateBudgetSchema = z.object({
-//   name: z.string().min(1, "Name is required").optional(),
-//   amount: z.number().positive("Amount must be positive").optional(),
-//   period: z.enum(['WEEKLY', 'MONTHLY', 'QUARTERLY', 'YEARLY']).optional(),
-//   startDate: z.string().transform((str) => new Date(str)).optional(),
-//   endDate: z.string().transform((str) => new Date(str)).optional(),
-// });
-
 // GET /api/budget - Get all budget items for the user
 export async function GET() {
   try {

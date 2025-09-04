@@ -355,13 +355,6 @@ export default function ReportsPage() {
     ? (expensesByPeriod || []).reduce((sum, item) => sum + (item?.amount || 0), 0) / (expensesByPeriod || []).length 
     : 0;
 
-  // Debug logging
-  console.log('Time range:', timeRange);
-  console.log('Expenses by category:', expensesByCategory);
-  console.log('Expenses by period:', expensesByPeriod);
-  console.log('Max amount:', maxAmount);
-  console.log('Total amount:', totalAmount);
-
   const hasData = (expensesByCategory || []).length > 0 || (expensesByPeriod || []).length > 0;
 
   const togglePeriodExpansion = (period: string) => {

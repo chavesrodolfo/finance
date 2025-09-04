@@ -33,7 +33,6 @@ export async function POST(request: NextRequest) {
     }
 
     const { transactions, jobId } = await request.json()
-    console.log('Bulk API: Received transactions:', transactions?.length, 'with jobId:', jobId)
 
     if (!transactions || !Array.isArray(transactions)) {
       console.error('Bulk API: Invalid transactions data:', transactions)
@@ -53,7 +52,6 @@ export async function POST(request: NextRequest) {
 
     // Get user categories for mapping
     const userCategories = await getUserCategories(stackUser.id)
-    console.log('Bulk API: User categories:', userCategories)
     const categoryMap = new Map<string, CategoryData>(userCategories.map((cat: CategoryData) => [cat.name.toLowerCase(), cat]))
 
     // Initialize progress tracking
@@ -69,15 +67,12 @@ export async function POST(request: NextRequest) {
     let skippedCount = 0
     const BATCH_SIZE = 10; // Process in smaller batches
 
-    console.log('Bulk API: Processing', transactions.length, 'transactions in batches of', BATCH_SIZE)
-
     // Process in batches to allow progress updates
     for (let i = 0; i < transactions.length; i += BATCH_SIZE) {
       const batch = transactions.slice(i, i + BATCH_SIZE);
       
       for (const transactionData of batch) {
       try {
-        console.log('Bulk API: Processing transaction:', transactionData);
         // Always assign a valid category, create if not found
         let categoryId;
         const categoryName = transactionData.categoryName ? transactionData.categoryName.trim() : 'Other';

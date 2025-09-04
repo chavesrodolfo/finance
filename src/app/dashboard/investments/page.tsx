@@ -9,6 +9,7 @@ import { InvestmentAccountForm } from "@/components/investment-account-form";
 import { InvestmentAccountCard } from "@/components/investment-account-card";
 import { convertToCAD } from "@/lib/currency";
 import { useExchangeRates } from "@/hooks/use-exchange-rates";
+import { useHideValues } from "@/hooks/use-hide-values";
 
 interface InvestmentAccount {
   id: string;
@@ -25,8 +26,8 @@ interface InvestmentAccount {
 export default function InvestmentsPage() {
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAmounts, setShowAmounts] = useState(true);
   const { rates, loading: ratesLoading, isLive } = useExchangeRates();
+  const { hideValues, toggleHideValues, formatValue, isLoaded } = useHideValues();
 
   const fetchAccounts = async () => {
     try {
@@ -80,7 +81,7 @@ export default function InvestmentsPage() {
     return sum + (cadValue * (account.annualReturnPercent / 100));
   }, 0);
 
-  if (loading) {
+  if (loading || !isLoaded) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -155,11 +156,9 @@ export default function InvestmentsPage() {
           <Button 
             variant="outline" 
             size="sm" 
-            className="flex items-center gap-2"
-            onClick={() => setShowAmounts(!showAmounts)}
+            onClick={toggleHideValues}
           >
-            {showAmounts ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            {showAmounts ? "Hide Values" : "Show Values"}
+            {hideValues ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
           </Button>
           <InvestmentAccountForm onAccountChanged={fetchAccounts} />
         </div>
@@ -188,7 +187,7 @@ export default function InvestmentsPage() {
                   <CircleDollarSign className="h-5 w-5 text-primary" />
                 </div>
                 <p className="text-3xl font-bold text-primary">
-                  {showAmounts ? `CAD$${totalInvestments.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "••••••"}
+                  {formatValue(totalInvestments, 'CAD$')}
                 </p>
                 <div className="flex items-center justify-between mt-1">
                   <p className="text-sm text-muted-foreground">Across all accounts (converted to CAD)</p>
@@ -211,7 +210,7 @@ export default function InvestmentsPage() {
                   <TrendingUp className="h-5 w-5 text-emerald-400" />
                 </div>
                 <p className="text-3xl font-bold text-emerald-400">
-                  {showAmounts ? `CAD$${projectedAnnualReturn.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "••••••"}
+                  {formatValue(projectedAnnualReturn, 'CAD$')}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">Based on current allocation (CAD)</p>
               </CardContent>
@@ -242,7 +241,7 @@ export default function InvestmentsPage() {
                 <InvestmentAccountCard
                   key={account.id}
                   account={account}
-                  showAmounts={showAmounts}
+                  showAmounts={!hideValues}
                   onAccountChanged={fetchAccounts}
                 />
               ))}

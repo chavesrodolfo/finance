@@ -61,9 +61,7 @@ export default function TransactionsPage() {
   const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
 
   const handleButtonClick = () => {
-    console.log('Button clicked');
     if (fileInputRef.current) {
-      console.log('File input found, triggering click');
       fileInputRef.current.click();
     } else {
       console.error('File input ref not found');
@@ -230,11 +228,8 @@ export default function TransactionsPage() {
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('handleFileUpload called', event.target.files);
     const file = event.target.files?.[0];
     if (!file) return;
-
-    console.log('File selected:', file.name, file.type);
 
     if (!file.name.endsWith('.csv')) {
       toast({
@@ -253,8 +248,6 @@ export default function TransactionsPage() {
       const text = await file.text();
       console.log('File content:', text.substring(0, 500) + '...');
       const csvData = parseCSV(text);
-      console.log('Parsed CSV data:', csvData);
-      console.log('CSV headers found:', csvData.length > 0 ? Object.keys(csvData[0]) : 'No data');
       
       if (csvData.length === 0) {
         toast({
@@ -305,10 +298,6 @@ export default function TransactionsPage() {
       };
 
       for (const row of csvData) {
-        console.log('Processing CSV row:', row);
-        // Get all available keys to help with debugging
-        const availableKeys = Object.keys(row);
-        console.log('Available CSV columns:', availableKeys);
         // Match the provided template format exactly
         const cleanAmount = (val: string) => {
           if (!val) return 0;
@@ -323,7 +312,6 @@ export default function TransactionsPage() {
           type: mapTransactionType(row['Type'] || row['type'] || 'EXPENSE'),
           categoryName: row['Category'] || row['category'] || 'Other'
         };
-        console.log('Mapped transaction:', transaction);
         // Collect reasons for skipping
         let skipReason = '';
         if (transaction.amount === 0) {
@@ -348,7 +336,6 @@ export default function TransactionsPage() {
       const jobId = `import_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
       
       // Send to API with job ID
-      console.log('Sending transactions to API:', uploadedTransactions.length, 'transactions with jobId:', jobId);
       const response = await fetch('/api/transactions/bulk', {
         method: 'POST',
         headers: {
@@ -373,7 +360,6 @@ export default function TransactionsPage() {
           
           if (progressResponse.ok) {
             const progressData = await progressResponse.json();
-            console.log('Progress data:', progressData);
             
             // Update progress details from API
             

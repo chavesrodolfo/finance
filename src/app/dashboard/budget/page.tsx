@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/table";
 import { AddBudgetDialog } from "@/components/budget/add-budget-dialog";
 import { EditBudgetDialog } from "@/components/budget/edit-budget-dialog";
-// import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 
 interface BudgetItem {
@@ -34,7 +33,6 @@ export default function BudgetPage() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<BudgetItem | null>(null);
-  // const { toast } = useToast();
 
   const fetchBudgetItems = async () => {
     try {
@@ -68,9 +66,6 @@ export default function BudgetPage() {
   const topExpenses = [...items]
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 5);
-
-  // Calculate percentages for top expenses
-  // const maxAmount = Math.max(...topExpenses.map(item => item.amount), 1);
 
   const handleEditItem = (item: BudgetItem) => {
     setSelectedItem(item);
