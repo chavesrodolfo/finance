@@ -10,6 +10,8 @@ import { InvestmentAccountCard } from "@/components/investment-account-card";
 import { convertToCAD } from "@/lib/currency";
 import { useExchangeRates } from "@/hooks/use-exchange-rates";
 import { useHideValues } from "@/hooks/use-hide-values";
+import { PieChart } from "@/components/ui/pie-chart";
+import { formatCurrency } from "@/lib/utils";
 
 interface InvestmentAccount {
   id: string;
@@ -108,41 +110,89 @@ export default function InvestmentsPage() {
           ))}
         </div>
 
-        {/* Cards skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <Card key={i}>
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2">
-                    <Skeleton className="h-5 w-32" />
-                    <Skeleton className="h-4 w-16" />
-                  </div>
-                  <Skeleton className="h-8 w-8" />
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Skeleton className="h-4 w-20" />
-                    <Skeleton className="h-8 w-24" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 pt-2 border-t">
-                    <div className="text-center">
-                      <Skeleton className="h-3 w-12 mx-auto mb-2" />
-                      <Skeleton className="h-4 w-16 mx-auto mb-1" />
-                      <Skeleton className="h-3 w-12 mx-auto" />
-                    </div>
-                    <div className="text-center">
-                      <Skeleton className="h-3 w-12 mx-auto mb-2" />
-                      <Skeleton className="h-4 w-16 mx-auto mb-1" />
-                      <Skeleton className="h-3 w-12 mx-auto" />
-                    </div>
+        {/* Portfolio Distribution Skeleton */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-40 mb-2" />
+            <Skeleton className="h-4 w-64" />
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Pie Chart Skeleton */}
+              <div className="flex justify-center">
+                <div className="relative">
+                  <Skeleton className="w-[420px] h-[420px] rounded-full" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Skeleton className="w-[168px] h-[168px] rounded-full bg-background" />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+              
+              {/* Account Breakdown Skeleton */}
+              <div className="space-y-3">
+                <Skeleton className="h-6 w-32 mb-4" />
+                {[...Array(5)].map((_, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="w-4 h-4 rounded-full" />
+                      <div>
+                        <Skeleton className="h-4 w-28 mb-1" />
+                        <Skeleton className="h-3 w-16" />
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Skeleton className="h-4 w-20 mb-1" />
+                      <Skeleton className="h-3 w-12" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Investment Account Cards skeleton */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2">
+                      <Skeleton className="h-5 w-32" />
+                      <Skeleton className="h-4 w-16" />
+                    </div>
+                    <Skeleton className="h-8 w-8" />
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-8 w-24" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                      <div className="text-center">
+                        <Skeleton className="h-3 w-12 mx-auto mb-2" />
+                        <Skeleton className="h-4 w-16 mx-auto mb-1" />
+                        <Skeleton className="h-3 w-12 mx-auto" />
+                      </div>
+                      <div className="text-center">
+                        <Skeleton className="h-3 w-12 mx-auto mb-2" />
+                        <Skeleton className="h-4 w-16 mx-auto mb-1" />
+                        <Skeleton className="h-3 w-12 mx-auto" />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -227,6 +277,83 @@ export default function InvestmentsPage() {
               </CardContent>
             </Card>
           </div>
+          
+          {/* Portfolio Distribution Chart */}
+          <Card>
+            <CardHeader>
+              <h2 className="text-xl font-semibold">Portfolio Distribution</h2>
+              <p className="text-sm text-muted-foreground">
+                Breakdown of your investment accounts by value
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="flex justify-center">
+                  <PieChart
+                    data={accounts
+                      .map(account => ({
+                        ...account,
+                        cadValue: convertToCadWithLiveRates(account.currentValue, account.currency)
+                      }))
+                      .sort((a, b) => b.cadValue - a.cadValue)
+                      .map((account, index) => {
+                        const colors = [
+                          '#3b82f6', '#ef4444', '#10b981', '#f59e0b', 
+                          '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16',
+                          '#f97316', '#6366f1'
+                        ];
+                        return {
+                          name: account.name,
+                          value: account.cadValue,
+                          color: colors[index % colors.length]
+                        };
+                      })}
+                    size={420}
+                  />
+                </div>
+                
+                <div className="space-y-3">
+                  <h3 className="font-medium text-lg mb-4">Account Breakdown</h3>
+                  {accounts
+                    .map(account => ({
+                      ...account,
+                      cadValue: convertToCadWithLiveRates(account.currentValue, account.currency)
+                    }))
+                    .sort((a, b) => b.cadValue - a.cadValue)
+                    .map((account, index) => {
+                      const percentage = totalInvestments > 0 ? (account.cadValue / totalInvestments) * 100 : 0;
+                      const colors = [
+                        '#3b82f6', '#ef4444', '#10b981', '#f59e0b', 
+                        '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16',
+                        '#f97316', '#6366f1'
+                      ];
+                      return (
+                        <div key={account.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div 
+                              className="w-4 h-4 rounded-full"
+                              style={{ backgroundColor: colors[index % colors.length] }}
+                            />
+                            <div>
+                              <p className="font-medium">{account.name}</p>
+                              <p className="text-sm text-muted-foreground">{account.accountType}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold">
+                              {formatValue(formatCurrency(account.cadValue))}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {percentage.toFixed(1)}%
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
           
           <div className="space-y-6">
             <div className="flex items-center justify-between">

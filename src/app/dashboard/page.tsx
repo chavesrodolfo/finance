@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { stackClientApp } from "../stack.client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { MetricCardSkeleton, TransactionListSkeleton, BudgetCardSkeleton } from "@/components/dashboard/skeletons";
+import { MetricCardSkeleton, TransactionListSkeleton, BudgetCardSkeleton, InvestmentCardSkeleton } from "@/components/dashboard/skeletons";
 import { formatCurrency } from "@/lib/utils";
 import { iconMap } from "@/lib/category-icons";
 import { Button } from "@/components/ui/button";
@@ -176,7 +176,7 @@ export default function Dashboard() {
             <BudgetCardSkeleton />
           </div>
           <div className="lg:col-span-1">
-            <BudgetCardSkeleton />
+            <InvestmentCardSkeleton />
           </div>
         </div>
       </div>
@@ -229,20 +229,6 @@ export default function Dashboard() {
 
         <Card className="p-6 glassmorphism">
           <div className="flex items-center space-x-4">
-            <div className="p-3 bg-purple-500/20 rounded-lg">
-              <TrendingUp className="h-6 w-6 text-purple-500" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Total Investments</p>
-              <p className="text-2xl font-bold text-purple-400">
-                {formatValue(formatCurrency(totalInvestments))}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6 glassmorphism">
-          <div className="flex items-center space-x-4">
             <div className="p-3 bg-blue-500/20 rounded-lg">
               <CircleDollarSign className="h-6 w-6 text-blue-500" />
             </div>
@@ -250,6 +236,20 @@ export default function Dashboard() {
               <p className="text-sm text-gray-400">Total Budget</p>
               <p className="text-2xl font-bold text-blue-400">
                 {formatValue(formatCurrency(totalBudget))}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6 glassmorphism">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-purple-500/20 rounded-lg">
+              <TrendingUp className="h-6 w-6 text-purple-500" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-400">Total Investments</p>
+              <p className="text-2xl font-bold text-purple-400">
+                {formatValue(formatCurrency(totalInvestments))}
               </p>
             </div>
           </div>
@@ -267,32 +267,40 @@ export default function Dashboard() {
                 <span className="text-sm text-purple-400 hover:text-purple-300">View All →</span>
               </div>
             <div className="space-y-4">
-              {transactions.slice(0, 5).map((transaction) => {
-                const IconComponent = transaction.category.icon ? iconMap[transaction.category.icon] : null;
-                return (
-                  <div key={transaction.id} className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-purple-500/20 rounded-lg">
-                        {IconComponent && <IconComponent className="h-4 w-4 text-purple-400" />}
+              {transactions.length > 0 ? (
+                transactions.slice(0, 5).map((transaction) => {
+                  const IconComponent = transaction.category.icon ? iconMap[transaction.category.icon] : null;
+                  return (
+                    <div key={transaction.id} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-purple-500/20 rounded-lg">
+                          {IconComponent && <IconComponent className="h-4 w-4 text-purple-400" />}
+                        </div>
+                        <div>
+                          <p className="font-medium">{transaction.description}</p>
+                          <p className="text-sm text-gray-400">{transaction.category.name}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{transaction.description}</p>
-                        <p className="text-sm text-gray-400">{transaction.category.name}</p>
+                      <div className="text-right">
+                        <p className={`font-semibold ${
+                          transaction.type === 'INCOME' ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                          {transaction.type === 'INCOME' ? '+' : '-'}{formatValue(formatCurrency(transaction.amount))}
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          {new Date(transaction.date).toLocaleDateString()}
+                        </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className={`font-semibold ${
-                        transaction.type === 'INCOME' ? 'text-green-400' : 'text-red-400'
-                      }`}>
-                        {transaction.type === 'INCOME' ? '+' : '-'}{formatValue(formatCurrency(transaction.amount))}
-                      </p>
-                      <p className="text-sm text-gray-400">
-                        {new Date(transaction.date).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              ) : (
+                <div className="text-center py-8">
+                  <CircleDollarSign className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-400 mb-4">No transactions yet</p>
+                  <p className="text-sm text-gray-500">Start adding transactions to track your expenses and income</p>
+                </div>
+              )}
             </div>
             </Card>
           </Link>
