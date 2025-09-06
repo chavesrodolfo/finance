@@ -189,7 +189,7 @@ export default function Intro() {
           onClick={() => window.location.href = "/handler/sign-in"}
           className="px-10 py-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 hover:bg-gray-50"
         >
-          Get Started Now - It's Free!
+          Get Started Now - It&apos;s Free!
         </button>
       </div>
         </div>
