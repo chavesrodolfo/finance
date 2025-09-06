@@ -6,10 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReportsSkeleton } from "@/components/dashboard/skeletons";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
+import { useAccountAwareApi } from "@/hooks/useAccountAwareApi";
+import { useAccountContext } from "@/hooks/useAccountContext";
 
 interface ExpenseData {
   category: string;
@@ -60,6 +63,9 @@ interface RawTransactionData {
 }
 
 export default function ReportsPage() {
+  const { apiFetch } = useAccountAwareApi();
+  const { currentAccount } = useAccountContext();
+  const [activeTab, setActiveTab] = useState("expenses");
   const [timeRange, setTimeRange] = useState("monthly");
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -69,6 +75,8 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [expensesByCategory, setExpensesByCategory] = useState<ExpenseData[]>([]);
   const [expensesByPeriod, setExpensesByPeriod] = useState<MonthlyData[] | YearlyData[]>([]);
+  const [incomeByCategory, setIncomeByCategory] = useState<ExpenseData[]>([]);
+  const [incomeByPeriod, setIncomeByPeriod] = useState<MonthlyData[] | YearlyData[]>([]);
   const [categoryByPeriod, setCategoryByPeriod] = useState<{[period: string]: ExpenseData[]}>({});
   const [expandedPeriods, setExpandedPeriods] = useState<Set<string>>(new Set());
   const [showAllCategories, setShowAllCategories] = useState(false);
@@ -78,21 +86,23 @@ export default function ReportsPage() {
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [allCategories, setAllCategories] = useState<string[]>([]);
   const [allDescriptions, setAllDescriptions] = useState<string[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [filteredTransactions, setFilteredTransactions] = useState<TransactionData[]>([]);
+  const [filteredExpenseTransactions, setFilteredExpenseTransactions] = useState<TransactionData[]>([]);
+  const [filteredIncomeTransactions, setFilteredIncomeTransactions] = useState<TransactionData[]>([]);
   const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set());
   
   // Multi-select dropdown states
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [descriptionDropdownOpen, setDescriptionDropdownOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetch("/api/transactions");
-        if (!response.ok) throw new Error("Failed to fetch transactions");
-        const data = await response.json();
+  const fetchTransactions = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiFetch("/api/transactions");
+      if (!response.ok) throw new Error("Failed to fetch transactions");
+      const data = await response.json();
         
         // Extract available years, categories, and descriptions from all transaction data
         const yearsSet = new Set<number>();
@@ -117,14 +127,22 @@ export default function ReportsPage() {
         setAllCategories(sortedCategories);
         setAllDescriptions(sortedDescriptions);
         
-        // Initialize selections if empty
+        // Always initialize with all categories and descriptions selected on first load
+        // Check if this is the initial load (when selectedCategories is empty)
         if (selectedCategories.length === 0 && sortedCategories.length > 0) {
           setSelectedCategories(sortedCategories);
           setPendingCategories(sortedCategories);
+        } else if (selectedCategories.length > 0 && pendingCategories.length === 0) {
+          // Ensure pending categories are synced if they weren't set
+          setPendingCategories(selectedCategories);
         }
+        
         if (selectedDescriptions.length === 0 && sortedDescriptions.length > 0) {
           setSelectedDescriptions(sortedDescriptions);
           setPendingDescriptions(sortedDescriptions);
+        } else if (selectedDescriptions.length > 0 && pendingDescriptions.length === 0) {
+          // Ensure pending descriptions are synced if they weren't set
+          setPendingDescriptions(selectedDescriptions);
         }
         
         // If selected year doesn't have data, default to the most recent year with data
@@ -178,7 +196,7 @@ export default function ReportsPage() {
         });
 
         // Store filtered transactions for the table
-        setFilteredTransactions(filteredData.map((t: RawTransactionData) => ({
+        const mappedTransactions = filteredData.map((t: RawTransactionData) => ({
           id: t.id,
           date: t.date,
           amount: t.amount,
@@ -188,14 +206,22 @@ export default function ReportsPage() {
           type: t.type,
           createdAt: t.createdAt,
           updatedAt: t.updatedAt
-        })));
+        }));
+        
+        setFilteredTransactions(mappedTransactions);
+        
+        // Separate expense and income transactions for individual tabs
+        setFilteredExpenseTransactions(mappedTransactions.filter((t: TransactionData) => t.type === "EXPENSE" || t.type === "EXPENSE_SAVINGS"));
+        setFilteredIncomeTransactions(mappedTransactions.filter((t: TransactionData) => t.type === "INCOME"));
 
         // Process analytics with filtered data
         const expenses = filteredData.filter((t: { type: string }) => t.type === "EXPENSE" || t.type === "EXPENSE_SAVINGS");
+        const income = filteredData.filter((t: { type: string }) => t.type === "INCOME");
         const total = expenses.reduce((sum: number, t: { amount: number }) => sum + Math.abs(t.amount), 0);
+        const incomeTotal = income.reduce((sum: number, t: { amount: number }) => sum + Math.abs(t.amount), 0);
         
         if (timeRange === "monthly") {
-          // Group by month and category
+          // Group expenses by month and category
           const monthlyMap: { [key: string]: number } = {};
           const categoryByMonthMap: { [month: string]: { [category: string]: number } } = {};
           
@@ -216,6 +242,28 @@ export default function ReportsPage() {
           const monthlyData = Object.entries(monthlyMap).map(([month, amount]) => ({ month, amount }));
           monthlyData.sort((a, b) => new Date(a.month + " 1").getTime() - new Date(b.month + " 1").getTime());
           setExpensesByPeriod(monthlyData);
+
+          // Group income by month and category
+          const incomeMonthlyMap: { [key: string]: number } = {};
+          const incomeCategoryByMonthMap: { [month: string]: { [category: string]: number } } = {};
+          
+          income.forEach((t: { amount: number; date: string; category?: { name: string }; description: string }) => {
+            const date = new Date(t.date);
+            const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            const categoryName = t.category?.name || "Uncategorized";
+            const amount = Math.abs(t.amount);
+            
+            // Total by month
+            incomeMonthlyMap[monthKey] = (incomeMonthlyMap[monthKey] || 0) + amount;
+            
+            // Category by month
+            if (!incomeCategoryByMonthMap[monthKey]) incomeCategoryByMonthMap[monthKey] = {};
+            incomeCategoryByMonthMap[monthKey][categoryName] = (incomeCategoryByMonthMap[monthKey][categoryName] || 0) + amount;
+          });
+          
+          const incomeMonthlyData = Object.entries(incomeMonthlyMap).map(([month, amount]) => ({ month, amount }));
+          incomeMonthlyData.sort((a, b) => new Date(a.month + " 1").getTime() - new Date(b.month + " 1").getTime());
+          setIncomeByPeriod(incomeMonthlyData);
           
           // Convert to category distribution by period
           const categoryByPeriodData: {[period: string]: ExpenseData[]} = {};
@@ -229,7 +277,7 @@ export default function ReportsPage() {
           });
           setCategoryByPeriod(categoryByPeriodData);
           
-          // Overall category totals for reference
+          // Overall category totals for expenses
           const categoryMap: { [key: string]: number } = {};
           expenses.forEach((t: { amount: number; category?: { name: string }; description: string }) => {
             const categoryName = t.category?.name || "Uncategorized";
@@ -242,6 +290,20 @@ export default function ReportsPage() {
           }));
           categories.sort((a, b) => b.amount - a.amount);
           setExpensesByCategory(categories);
+
+          // Overall category totals for income
+          const incomeCategoryMap: { [key: string]: number } = {};
+          income.forEach((t: { amount: number; category?: { name: string }; description: string }) => {
+            const categoryName = t.category?.name || "Uncategorized";
+            incomeCategoryMap[categoryName] = (incomeCategoryMap[categoryName] || 0) + Math.abs(t.amount);
+          });
+          const incomeCategories = Object.entries(incomeCategoryMap).map(([category, amount]) => ({
+            category,
+            amount,
+            percentage: incomeTotal ? (amount / incomeTotal) * 100 : 0
+          }));
+          incomeCategories.sort((a, b) => b.amount - a.amount);
+          setIncomeByCategory(incomeCategories);
           
         } else if (timeRange === "yearly") {
           // Group by year and category
@@ -291,6 +353,42 @@ export default function ReportsPage() {
           }));
           categories.sort((a, b) => b.amount - a.amount);
           setExpensesByCategory(categories);
+
+          // Group income by year and category
+          const incomeYearlyMap: { [key: string]: number } = {};
+          const incomeCategoryByYearMap: { [year: string]: { [category: string]: number } } = {};
+          
+          income.forEach((t: { amount: number; date: string; category?: { name: string }; description: string }) => {
+            const date = new Date(t.date);
+            const year = date.getFullYear().toString();
+            const categoryName = t.category?.name || "Uncategorized";
+            const amount = Math.abs(t.amount);
+            
+            // Total by year
+            incomeYearlyMap[year] = (incomeYearlyMap[year] || 0) + amount;
+            
+            // Category by year
+            if (!incomeCategoryByYearMap[year]) incomeCategoryByYearMap[year] = {};
+            incomeCategoryByYearMap[year][categoryName] = (incomeCategoryByYearMap[year][categoryName] || 0) + amount;
+          });
+          
+          const incomeYearlyData = Object.entries(incomeYearlyMap).map(([year, amount]) => ({ year, amount }));
+          incomeYearlyData.sort((a, b) => parseInt(a.year) - parseInt(b.year));
+          setIncomeByPeriod(incomeYearlyData);
+
+          // Overall category totals for income (yearly)
+          const incomeYearlyCategoryMap: { [key: string]: number } = {};
+          income.forEach((t: { amount: number; category?: { name: string }; description: string }) => {
+            const categoryName = t.category?.name || "Uncategorized";
+            incomeYearlyCategoryMap[categoryName] = (incomeYearlyCategoryMap[categoryName] || 0) + Math.abs(t.amount);
+          });
+          const incomeYearlyCategories = Object.entries(incomeYearlyCategoryMap).map(([category, amount]) => ({
+            category,
+            amount,
+            percentage: incomeTotal ? (amount / incomeTotal) * 100 : 0
+          }));
+          incomeYearlyCategories.sort((a, b) => b.amount - a.amount);
+          setIncomeByCategory(incomeYearlyCategories);
           
         } else {
           // For custom range, use overall category data
@@ -308,16 +406,45 @@ export default function ReportsPage() {
           setExpensesByCategory(categories);
           setExpensesByPeriod([]);
           setCategoryByPeriod({});
+
+          // For custom range, use overall income category data
+          const incomeCategoryMap: { [key: string]: number } = {};
+          income.forEach((t: { amount: number; category?: { name: string }; description: string }) => {
+            const categoryName = t.category?.name || "Uncategorized";
+            incomeCategoryMap[categoryName] = (incomeCategoryMap[categoryName] || 0) + Math.abs(t.amount);
+          });
+          const incomeCategories = Object.entries(incomeCategoryMap).map(([category, amount]) => ({
+            category,
+            amount,
+            percentage: incomeTotal ? (amount / incomeTotal) * 100 : 0
+          }));
+          incomeCategories.sort((a, b) => b.amount - a.amount);
+          setIncomeByCategory(incomeCategories);
+          setIncomeByPeriod([]);
         }
 
-      } catch (err: unknown) {
-        setError((err as Error).message || "Unknown error");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTransactions();
-  }, [timeRange, selectedYear, selectedCategories, selectedDescriptions, startDate, endDate]);
+    } catch (err: unknown) {
+      setError((err as Error).message || "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentAccount) {
+      fetchTransactions();
+    }
+  }, [timeRange, selectedYear, selectedCategories, selectedDescriptions, startDate, endDate, currentAccount]);
+
+  // Reset selections when account changes to trigger "select all" behavior
+  useEffect(() => {
+    if (currentAccount) {
+      setSelectedCategories([]);
+      setSelectedDescriptions([]);
+      setPendingCategories([]);
+      setPendingDescriptions([]);
+    }
+  }, [currentAccount]);
 
   // Function to apply pending selections
   const applyFilters = () => {
@@ -683,8 +810,14 @@ export default function ReportsPage() {
           </div>
         </div>
       ) : (
-        <div>
-          <div className="flex flex-col gap-4 mb-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="expenses">Expenses</TabsTrigger>
+            <TabsTrigger value="income">Income</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="expenses" className="space-y-6">
+            <div className="flex flex-col gap-4 mb-6">
             <div className="flex gap-4 items-center flex-wrap">
               <div className="flex gap-2">
                 <Button
@@ -965,8 +1098,8 @@ export default function ReportsPage() {
             )}
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-            <Card className="md:col-span-2 bg-card text-card-foreground border">
+          <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-3 gap-6 mt-6">
+            <Card className="md:col-span-3 lg:col-span-2 bg-card text-card-foreground border">
               <CardHeader>
                 <CardTitle>
                   {timeRange === 'monthly' ? 'Expenses by Month' : 
@@ -975,133 +1108,95 @@ export default function ReportsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-96 w-full relative">
-                  <div className="h-full w-full flex">
-                    <div className="flex flex-col justify-between text-xs text-muted-foreground pr-2" style={{ height: "320px", paddingBottom: "64px" }}>
-                      <span>{formatCurrency(maxAmount)}</span>
-                      <span>{formatCurrency(maxAmount * 0.75)}</span>
-                      <span>{formatCurrency(maxAmount * 0.5)}</span>
-                      <span>{formatCurrency(maxAmount * 0.25)}</span>
-                      <span>0</span>
+                <div className="w-full">
+                  {/* Show toggle for categories when there are many */}
+                  {timeRange === 'custom' && (expensesByCategory || []).length > 10 && (
+                    <div className="flex justify-end mb-4">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => setShowAllCategories(!showAllCategories)}
+                      >
+                        {showAllCategories ? "Show Top 10" : `Show All ${(expensesByCategory || []).length}`}
+                      </Button>
                     </div>
-                    <div className="flex-1 relative">
-                      {/* Show toggle for categories when there are many */}
-                      {timeRange === 'custom' && (expensesByCategory || []).length > 10 && (
-                        <div className="absolute top-0 right-0 z-20">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => setShowAllCategories(!showAllCategories)}
-                          >
-                            {showAllCategories ? "Show Top 10" : `Show All ${(expensesByCategory || []).length}`}
-                          </Button>
-                        </div>
-                      )}
+                  )}
+                  
+                  <div className="space-y-2">
+                    {(timeRange === 'custom' 
+                      ? (showAllCategories ? (expensesByCategory || []) : (expensesByCategory || []).slice(0, 10))
+                      : (expensesByPeriod || [])
+                    ).map((item, index) => {
+                      const barWidth = Math.max(((item?.amount || 0) / maxAmount) * 100, 1);
+                      const label = timeRange === 'custom' ? ((item as ExpenseData).category || 'Unknown') : 
+                                   timeRange === 'monthly' ? ((item as MonthlyData).month || 'Unknown') : 
+                                   ((item as YearlyData).year || 'Unknown');
+                      const colorClass = "bg-violet-500";
                       
-                      <div className={`${
-                        timeRange === 'custom' && (expensesByCategory || []).length > 10 && showAllCategories 
-                          ? "overflow-x-auto" 
-                          : ""
-                      }`}>
-                        <div 
-                          className="flex items-end relative" 
-                          style={{ 
-                            height: "320px",
-                            width: timeRange === 'custom' && (expensesByCategory || []).length > 10 && showAllCategories 
-                              ? `${Math.max((expensesByCategory || []).length * 60, 800)}px` 
-                              : "100%",
-                            justifyContent: timeRange === 'custom' && (expensesByCategory || []).length > 10 && showAllCategories 
-                              ? "flex-start" 
-                              : "space-around"
-                          }}
-                        >
-                          <div className="absolute bottom-16 left-0 right-0 h-px bg-border"></div>
-                          {(timeRange === 'custom' 
-                            ? (showAllCategories ? (expensesByCategory || []) : (expensesByCategory || []).slice(0, 10))
-                            : (expensesByPeriod || [])
-                          ).map((item, index) => {
-                            const availableHeight = 320 - 64; // 320px container - 64px for labels
-                            const barHeight = Math.max(((item?.amount || 0) / maxAmount) * availableHeight, 4);
-                            const label = timeRange === 'custom' ? ((item as ExpenseData).category || 'Unknown') : 
-                                         timeRange === 'monthly' ? ((item as MonthlyData).month || 'Unknown') : 
-                                         ((item as YearlyData).year || 'Unknown');
-                            const color = "rgb(139, 92, 246)"; // Violet color for all bars
-                            
-                            return (
+                      return (
+                        <div key={index} className="flex items-center gap-3">
+                          <div className="flex-shrink-0 w-20 sm:w-24 text-right">
+                            <span className="text-xs sm:text-sm font-medium text-foreground truncate block">
+                              {label.length > 12 ? `${label.substring(0, 12)}...` : label}
+                            </span>
+                          </div>
+                          
+                          <div className="flex-1 relative">
+                            <div className="w-full bg-muted rounded-full h-6 sm:h-8 relative overflow-hidden">
                               <div 
-                                key={index} 
-                                className="flex flex-col items-center"
-                                style={{
-                                  margin: timeRange === 'custom' && (expensesByCategory || []).length > 10 && showAllCategories 
-                                    ? "0 8px" 
-                                    : "0",
-                                  height: "320px",
-                                  justifyContent: "flex-end"
-                                }}
+                                className={`h-full rounded-full ${colorClass} transition-all duration-500 ease-out relative`}
+                                style={{ width: `${barWidth}%` }}
                               >
-                                <div className="flex flex-col items-center" style={{ marginBottom: "2px" }}>
-                                  <span className="text-xs font-medium text-foreground">
-                                    {formatCurrency(item?.amount || 0)}
-                                  </span>
-                                </div>
-                                <div
-                                  style={{
-                                    height: `${barHeight}px`,
-                                    backgroundColor: color,
-                                    width: "36px",
-                                    borderRadius: "3px 3px 0 0",
-                                    minHeight: "4px",
-                                    border: "2px solid hsl(var(--border))",
-                                    position: "relative",
-                                    zIndex: 10,
-                                    boxShadow: "0 0 4px hsl(var(--ring) / 0.3)"
-                                  }}
-                                ></div>
-                                <div className="h-16 flex flex-col items-center justify-start shrink-0">
-                                  <span 
-                                    className="text-xs mt-2 text-muted-foreground"
-                                    style={{
-                                      transform: (label && label.length > 8) ? "rotate(45deg) translateX(12px)" : "none",
-                                      transformOrigin: "top left",
-                                      whiteSpace: "nowrap",
-                                      maxWidth: "80px",
-                                      overflow: "hidden",
-                                      textOverflow: "ellipsis"
-                                    }}
-                                  >
-                                    {label}
-                                  </span>
-                                </div>
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
                               </div>
-                            );
-                          })}
+                            </div>
+                            
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                              <span className="text-xs font-medium text-white drop-shadow-sm">
+                                {formatCurrency(item?.amount || 0)}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex-shrink-0 w-12 sm:w-16 text-left">
+                            <span className="text-xs text-muted-foreground">
+                              {((item?.amount || 0) / totalAmount * 100).toFixed(1)}%
+                            </span>
+                          </div>
                         </div>
-                      </div>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Legend */}
+                  <div className="mt-3 pt-2 border-t border-border">
+                    <div className="flex items-center justify-end text-sm">
+                      <span className="text-muted-foreground">Max: {formatCurrency(maxAmount)}</span>
                     </div>
                   </div>
                 </div>
                 {/* Stats at bottom */}
-                <div className="grid grid-cols-4 gap-4 border-t border-border">
-                  <div className="flex flex-col items-center">
-                    <span className="text-xs text-muted-foreground">Total Expenses</span>
-                    <span className="text-2xl font-bold">{formatCurrency(totalAmount)}</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 border-t border-border pt-2 mt-2">
+                  <div className="flex flex-col items-center p-1">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground text-center">Total Expenses</span>
+                    <span className="text-lg sm:text-2xl font-bold">{formatCurrency(totalAmount)}</span>
                   </div>
                   
                   {timeRange !== 'custom' && (
-                    <div className="flex flex-col items-center">
-                      <span className="text-xs text-muted-foreground">
+                    <div className="flex flex-col items-center p-1">
+                      <span className="text-[10px] sm:text-xs text-muted-foreground text-center">
                         Average per {timeRange === 'monthly' ? 'Month' : 'Year'}
                       </span>
-                      <span className="text-xl font-bold">{formatCurrency(averageAmount)}</span>
+                      <span className="text-sm sm:text-xl font-bold">{formatCurrency(averageAmount)}</span>
                     </div>
                   )}
                   
-                  <div className="flex flex-col items-center">
-                    <span className="text-xs text-muted-foreground">
+                  <div className="flex flex-col items-center p-1">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground text-center">
                       {timeRange === 'monthly' ? 'Top Month' : 
                        timeRange === 'yearly' ? 'Top Year' : 'Top Category'}
                     </span>
-                    <span className="text-lg font-bold">
+                    <span className="text-sm sm:text-lg font-bold text-center">
                       {timeRange === 'custom' 
                         ? (expensesByCategory || [])[0]?.category || "N/A"
                         : timeRange === 'monthly' 
@@ -1111,12 +1206,12 @@ export default function ReportsPage() {
                     </span>
                   </div>
                   
-                  <div className="flex flex-col items-center">
-                    <span className="text-xs text-muted-foreground">
+                  <div className="flex flex-col items-center p-1">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground text-center">
                       {timeRange === 'monthly' ? 'Months' : 
                        timeRange === 'yearly' ? 'Years' : 'Categories'}
                     </span>
-                    <span className="text-xl font-bold">
+                    <span className="text-sm sm:text-xl font-bold">
                       {timeRange === 'custom' ? (expensesByCategory || []).length : (expensesByPeriod || []).length}
                     </span>
                   </div>
@@ -1124,11 +1219,11 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
             
-            <Card className="bg-card text-card-foreground border">
-              <CardHeader>
+            <Card className="bg-card text-card-foreground border h-full max-h-[600px] overflow-hidden">
+              <CardHeader className="pb-4">
                 <CardTitle>Category Distribution</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="h-full overflow-y-auto">
                 {timeRange === 'custom' ? (
                   // For custom range, show overall category breakdown
                   (expensesByCategory || []).length === 0 ? (
@@ -1136,7 +1231,7 @@ export default function ReportsPage() {
                       <p className="text-muted-foreground">No category data available.</p>
                     </div>
                   ) : (
-                    <div className="space-y-6">
+                    <div className="space-y-4 h-full">
                       <div>
                         <h4 className="text-sm font-medium mb-3">Overall Distribution</h4>
                         <p className="text-xs text-muted-foreground mb-4">
@@ -1161,7 +1256,7 @@ export default function ReportsPage() {
                         </div>
                         
                         <div className="grid grid-cols-1 gap-2">
-                          {(expensesByCategory || []).slice(0, 8).map((item, index) => (
+                          {(expensesByCategory || []).map((item, index) => (
                             <div key={item.category} className="flex items-center gap-2">
                               <div 
                                 className={`w-3 h-3 rounded-full ${
@@ -1172,7 +1267,9 @@ export default function ReportsPage() {
                                   index === 4 ? "bg-purple-500" :
                                   index === 5 ? "bg-pink-500" :
                                   index === 6 ? "bg-indigo-500" :
-                                  "bg-teal-500"
+                                  index === 7 ? "bg-teal-500" :
+                                  index === 8 ? "bg-orange-500" :
+                                  "bg-cyan-500"
                                 }`} 
                               />
                               <span className="text-xs flex-1">{item?.category || 'Unknown'}</span>
@@ -1197,7 +1294,7 @@ export default function ReportsPage() {
                       <p className="text-muted-foreground">No category data available.</p>
                     </div>
                   ) : (
-                    <div className="space-y-6 max-h-96 overflow-y-auto">
+                    <div className="space-y-6 h-full overflow-y-auto">
                       {Object.entries(categoryByPeriod || {}).map(([period, categories]) => {
                         const safeCategories = categories || [];
                         const periodTotal = safeCategories.reduce((sum, cat) => sum + (cat?.amount || 0), 0);
@@ -1271,11 +1368,11 @@ export default function ReportsPage() {
           </div>
 
           {/* Transactions Data Table */}
-          {filteredTransactions.length > 0 && (
+          {filteredExpenseTransactions.length > 0 && (
             <Card className="bg-card text-card-foreground border mt-6">
               <CardHeader>
                 <CardTitle>
-                  Transaction Details ({filteredTransactions.length} transactions)
+                  Expense Transaction Details ({filteredExpenseTransactions.length} transactions)
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1293,7 +1390,7 @@ export default function ReportsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredTransactions.map((transaction) => (
+                      {filteredExpenseTransactions.map((transaction) => (
                         <React.Fragment key={transaction.id}>
                           <TableRow>
                             <TableCell>
@@ -1495,13 +1592,11 @@ export default function ReportsPage() {
                 <div className="border-t pt-4 mt-4">
                   <div className="flex justify-between items-center">
                     <span className="font-medium">
-                      Total Expenses: {filteredTransactions.filter(t => t.type === "EXPENSE" || t.type === "EXPENSE_SAVINGS").length} transactions
+                      Total Expenses: {filteredExpenseTransactions.length} transactions
                     </span>
                     <span className="font-medium text-lg">
                       {formatCurrency(
-                        filteredTransactions
-                          .filter(t => t.type === "EXPENSE" || t.type === "EXPENSE_SAVINGS")
-                          .reduce((sum, t) => sum + Math.abs(t.amount), 0)
+                        filteredExpenseTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0)
                       )}
                     </span>
                   </div>
@@ -1509,8 +1604,455 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
           )}
+          </TabsContent>
           
-        </div>
+          <TabsContent value="income" className="space-y-6">
+            <div className="flex flex-col gap-4 mb-6">
+            <div className="flex gap-4 items-center flex-wrap">
+              <div className="flex gap-2">
+                <Button
+                  variant={timeRange === "monthly" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTimeRange("monthly")}
+                >
+                  Monthly
+                </Button>
+                <Button
+                  variant={timeRange === "yearly" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTimeRange("yearly")}
+                >
+                  Yearly
+                </Button>
+                <Button
+                  variant={timeRange === "custom" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTimeRange("custom")}
+                >
+                  Custom
+                </Button>
+              </div>
+              
+              {/* Year Selector for Monthly Reports */}
+              {timeRange === "monthly" && availableYears.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="year-selector-income" className="text-sm font-medium whitespace-nowrap">
+                    Year:
+                  </Label>
+                  <Select value={selectedYear.toString()} onValueChange={(year) => setSelectedYear(parseInt(year))}>
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableYears.map((year) => (
+                        <SelectItem key={year} value={year.toString()}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
+              {/* Custom Date Range Pickers */}
+              {timeRange === "custom" && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="start-date-income" className="text-sm font-medium whitespace-nowrap">
+                      From:
+                    </Label>
+                    <Input
+                      id="start-date-income"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-40"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="end-date-income" className="text-sm font-medium whitespace-nowrap">
+                      To:
+                    </Label>
+                    <Input
+                      id="end-date-income"
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-40"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+            </div>
+            
+            {/* Income Charts */}
+            <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-3 gap-6 mt-6">
+              <Card className="md:col-span-3 lg:col-span-2 bg-card text-card-foreground border">
+                <CardHeader>
+                  <CardTitle>
+                    Income by {timeRange === 'monthly' ? 'Month' : timeRange === 'yearly' ? 'Year' : 'Category'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-full">
+                    {(activeTab === 'income' ? incomeByPeriod : []).length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">No income data available for selected filters.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-2">
+                          {(timeRange === 'custom' 
+                            ? (showAllCategories ? (incomeByCategory || []) : (incomeByCategory || []).slice(0, 10))
+                            : (incomeByPeriod || [])
+                          ).map((item, index) => {
+                            const maxAmount = Math.max(...(activeTab === 'income' ? incomeByPeriod : []).map((d: MonthlyData | YearlyData) => d?.amount || 0));
+                            const barWidth = Math.max(((item?.amount || 0) / maxAmount) * 100, 1);
+                            const label = timeRange === 'custom' ? ((item as ExpenseData).category || 'Unknown') : 
+                                         timeRange === 'monthly' ? ((item as MonthlyData).month || 'Unknown') : 
+                                         ((item as YearlyData).year || 'Unknown');
+                            const colorClass = "bg-green-500";
+                            
+                            return (
+                              <div key={index} className="flex items-center gap-3">
+                                <div className="flex-shrink-0 w-20 sm:w-24 text-right">
+                                  <span className="text-xs sm:text-sm font-medium text-foreground truncate block">
+                                    {label.length > 12 ? `${label.substring(0, 12)}...` : label}
+                                  </span>
+                                </div>
+                                
+                                <div className="flex-1 relative">
+                                  <div className="w-full bg-muted rounded-full h-6 sm:h-8 relative overflow-hidden">
+                                    <div 
+                                      className={`h-full rounded-full ${colorClass} transition-all duration-500 ease-out relative`}
+                                      style={{ width: `${barWidth}%` }}
+                                    >
+                                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                                    <span className="text-xs font-medium text-white drop-shadow-sm">
+                                      {formatCurrency(item?.amount || 0)}
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex-shrink-0 w-12 sm:w-16 text-left">
+                                  <span className="text-xs text-muted-foreground">
+                                    {((item?.amount || 0) / (incomeByPeriod || []).reduce((sum: number, d: MonthlyData | YearlyData) => sum + (d?.amount || 0), 0) * 100).toFixed(1)}%
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        
+                        {/* Legend */}
+                        <div className="mt-3 pt-2 border-t border-border">
+                          <div className="flex items-center justify-end text-sm">
+                            <span className="text-muted-foreground">Max: {formatCurrency(Math.max(...(incomeByPeriod || []).map((d: MonthlyData | YearlyData) => d?.amount || 0)))}</span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    {/* Stats at bottom */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 border-t border-border pt-2 mt-2">
+                      <div className="flex flex-col items-center p-1">
+                        <span className="text-[10px] sm:text-xs text-muted-foreground text-center">Total Income</span>
+                        <span className="text-lg sm:text-2xl font-bold text-green-600">{formatCurrency((incomeByPeriod || []).reduce((sum: number, d: MonthlyData | YearlyData) => sum + (d?.amount || 0), 0))}</span>
+                      </div>
+                      
+                      {timeRange !== 'custom' && (
+                        <div className="flex flex-col items-center p-1">
+                          <span className="text-[10px] sm:text-xs text-muted-foreground text-center">
+                            Average per {timeRange === 'monthly' ? 'Month' : 'Year'}
+                          </span>
+                          <span className="text-sm sm:text-xl font-bold text-green-600">
+                            {formatCurrency((incomeByPeriod || []).length > 0 ? (incomeByPeriod || []).reduce((sum: number, d: MonthlyData | YearlyData) => sum + (d?.amount || 0), 0) / (incomeByPeriod || []).length : 0)}
+                          </span>
+                        </div>
+                      )}
+                      
+                      <div className="flex flex-col items-center p-1">
+                        <span className="text-[10px] sm:text-xs text-muted-foreground text-center">
+                          {timeRange === 'monthly' ? 'Top Month' : 
+                           timeRange === 'yearly' ? 'Top Year' : 'Top Category'}
+                        </span>
+                        <span className="text-sm sm:text-lg font-bold text-center text-green-600">
+                          {timeRange === 'custom' 
+                            ? (incomeByCategory || [])[0]?.category || "N/A"
+                            : timeRange === 'monthly' 
+                              ? ((incomeByPeriod || [])[0] as MonthlyData)?.month || "N/A"
+                              : ((incomeByPeriod || [])[0] as YearlyData)?.year || "N/A"
+                          }
+                        </span>
+                      </div>
+                      
+                      <div className="flex flex-col items-center p-1">
+                        <span className="text-[10px] sm:text-xs text-muted-foreground text-center">
+                          {timeRange === 'monthly' ? 'Months' : 
+                           timeRange === 'yearly' ? 'Years' : 'Categories'}
+                        </span>
+                        <span className="text-sm sm:text-xl font-bold text-green-600">
+                          {timeRange === 'custom' ? (incomeByCategory || []).length : (incomeByPeriod || []).length}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-card text-card-foreground border h-full max-h-[600px] overflow-hidden">
+                <CardHeader className="pb-4">
+                  <CardTitle>Income Distribution</CardTitle>
+                </CardHeader>
+                <CardContent className="h-full overflow-y-auto">
+                  {(incomeByCategory || []).length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No income category data available.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 h-full">
+                      <div>
+                        <h4 className="text-sm font-medium mb-3">Category Breakdown</h4>
+                        <p className="text-xs text-muted-foreground mb-4">
+                          Visual breakdown showing how your income is distributed across different categories.
+                        </p>
+                        <div className="h-4 w-full bg-muted rounded-full overflow-hidden mb-4">
+                          {(incomeByCategory || []).map((item, index) => {
+                            const incomeTotal = (incomeByCategory || []).reduce((sum: number, d: ExpenseData) => sum + (d?.amount || 0), 0);
+                            const percentage = incomeTotal > 0 ? ((item?.amount || 0) / incomeTotal) * 100 : 0;
+                            const colors = [
+                              "bg-green-500", "bg-emerald-500", "bg-teal-500", 
+                              "bg-lime-500", "bg-green-600", "bg-emerald-600",
+                              "bg-teal-600", "bg-lime-600", "bg-green-700", "bg-emerald-700"
+                            ];
+                            return (
+                              <div
+                                key={item?.category || 'unknown'}
+                                className={`h-full ${colors[index % colors.length]} inline-block`}
+                                style={{ width: `${percentage}%` }}
+                              />
+                            );
+                          })}
+                        </div>
+                        
+                        <div className="grid grid-cols-1 gap-2">
+                          {(incomeByCategory || []).map((item, index) => {
+                            const incomeTotal = (incomeByCategory || []).reduce((sum: number, d: ExpenseData) => sum + (d?.amount || 0), 0);
+                            return (
+                              <div key={item.category} className="flex items-center gap-2">
+                                <div 
+                                  className={`w-3 h-3 rounded-full ${
+                                    index === 0 ? "bg-green-500" :
+                                    index === 1 ? "bg-emerald-500" :
+                                    index === 2 ? "bg-teal-500" :
+                                    index === 3 ? "bg-lime-500" :
+                                    index === 4 ? "bg-green-600" :
+                                    index === 5 ? "bg-emerald-600" :
+                                    index === 6 ? "bg-teal-600" :
+                                    index === 7 ? "bg-lime-600" :
+                                    index === 8 ? "bg-green-700" :
+                                    "bg-emerald-700"
+                                  }`} 
+                                />
+                                <span className="text-xs flex-1">{item?.category || 'Unknown'}</span>
+                                <span className="text-xs font-medium">{formatCurrency(item?.amount || 0)}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {incomeTotal > 0 ? ((item?.amount || 0) / incomeTotal * 100).toFixed(1) : 0}%
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Income Transactions Data Table */}
+            {filteredIncomeTransactions.length > 0 && (
+              <Card className="bg-card text-card-foreground border mt-6">
+                <CardHeader>
+                  <CardTitle>
+                    Income Transaction Details ({filteredIncomeTransactions.length} transactions)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="max-h-96 overflow-y-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-8"></TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Notes</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredIncomeTransactions.map((transaction) => (
+                          <React.Fragment key={transaction.id}>
+                            <TableRow>
+                              <TableCell>
+                                <button
+                                  onClick={() => {
+                                    const newExpanded = new Set(expandedTransactions);
+                                    if (newExpanded.has(transaction.id)) {
+                                      newExpanded.delete(transaction.id);
+                                    } else {
+                                      newExpanded.add(transaction.id);
+                                    }
+                                    setExpandedTransactions(newExpanded);
+                                  }}
+                                  className="p-1 hover:bg-muted rounded"
+                                >
+                                  <ChevronDown 
+                                    className={`h-4 w-4 transition-transform ${
+                                      expandedTransactions.has(transaction.id) ? 'rotate-180' : ''
+                                    }`}
+                                  />
+                                </button>
+                              </TableCell>
+                              <TableCell>
+                                {new Date(transaction.date).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  {transaction.category?.color && (
+                                    <div 
+                                      className="w-3 h-3 rounded-full"
+                                      style={{ backgroundColor: transaction.category.color }}
+                                    />
+                                  )}
+                                  <span className="truncate max-w-32">
+                                    {transaction.category?.name || "Uncategorized"}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="max-w-48 truncate">
+                                {transaction.description}
+                              </TableCell>
+                              <TableCell className="max-w-32 truncate">
+                                {transaction.notes || "-"}
+                              </TableCell>
+                              <TableCell>
+                                <span className="inline-flex px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                  {transaction.type}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right font-mono">
+                                <span className="text-green-600 font-medium">
+                                  +{formatCurrency(Math.abs(transaction.amount))}
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                            {expandedTransactions.has(transaction.id) && (
+                              <TableRow>
+                                <TableCell></TableCell>
+                                <TableCell colSpan={6}>
+                                  <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div>
+                                        <h4 className="font-medium text-sm mb-2">Transaction Details</h4>
+                                        <div className="space-y-2 text-sm">
+                                          <div>
+                                            <span className="text-muted-foreground">ID:</span>
+                                            <span className="ml-2 font-mono text-xs">{transaction.id}</span>
+                                          </div>
+                                          <div>
+                                            <span className="text-muted-foreground">Type:</span>
+                                            <span className="ml-2">{transaction.type}</span>
+                                          </div>
+                                          <div>
+                                            <span className="text-muted-foreground">Amount:</span>
+                                            <span className="ml-2 font-mono text-green-600 font-medium">
+                                              +{formatCurrency(Math.abs(transaction.amount))}
+                                            </span>
+                                          </div>
+                                          {transaction.category && (
+                                            <div>
+                                              <span className="text-muted-foreground">Category:</span>
+                                              <div className="ml-2 flex items-center gap-2 mt-1">
+                                                {transaction.category.color && (
+                                                  <div 
+                                                    className="w-3 h-3 rounded-full"
+                                                    style={{ backgroundColor: transaction.category.color }}
+                                                  />
+                                                )}
+                                                <span>{transaction.category.name}</span>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <h4 className="font-medium text-sm mb-2">Additional Information</h4>
+                                        <div className="space-y-2 text-sm">
+                                          <div>
+                                            <span className="text-muted-foreground">Description:</span>
+                                            <p className="ml-2 text-wrap break-words">{transaction.description || "No description provided"}</p>
+                                          </div>
+                                          {transaction.notes && (
+                                            <div>
+                                              <span className="text-muted-foreground">Notes:</span>
+                                              <p className="ml-2 text-wrap break-words">{transaction.notes}</p>
+                                            </div>
+                                          )}
+                                          <div>
+                                            <span className="text-muted-foreground">Date:</span>
+                                            <span className="ml-2">{new Date(transaction.date).toLocaleDateString('en-US', { 
+                                              weekday: 'long', 
+                                              year: 'numeric', 
+                                              month: 'long', 
+                                              day: 'numeric' 
+                                            })}</span>
+                                          </div>
+                                          <div>
+                                            <span className="text-muted-foreground">Created:</span>
+                                            <span className="ml-2 text-xs">{new Date(transaction.createdAt).toLocaleString()}</span>
+                                          </div>
+                                          <div>
+                                            <span className="text-muted-foreground">Updated:</span>
+                                            <span className="ml-2 text-xs">{new Date(transaction.updatedAt).toLocaleString()}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  
+                  {/* Summary row */}
+                  <div className="border-t pt-4 mt-4">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">
+                        Total Income: {filteredIncomeTransactions.length} transactions
+                      </span>
+                      <span className="font-medium text-lg text-green-600">
+                        +{formatCurrency(
+                          filteredIncomeTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0)
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );

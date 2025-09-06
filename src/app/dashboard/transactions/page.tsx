@@ -13,6 +13,8 @@ import { TransactionActions } from "@/components/transactions/actions-dropdown";
 import { EditTransactionDialog } from "@/components/transactions/edit-transaction-dialog";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { iconMap } from "@/lib/category-icons";
+import { useAccountAwareApi } from "@/hooks/useAccountAwareApi";
+import { useAccountContext } from "@/hooks/useAccountContext";
 
 interface Transaction {
   id: string;
@@ -55,6 +57,8 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const { apiFetch } = useAccountAwareApi();
+  const { currentAccount } = useAccountContext();
   
   // Edit and delete state
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -73,12 +77,7 @@ export default function TransactionsPage() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/transactions', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await apiFetch('/api/transactions');
 
       if (!response.ok) {
         throw new Error('Failed to fetch transactions');
@@ -96,7 +95,7 @@ export default function TransactionsPage() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('/api/categories');
+      const response = await apiFetch('/api/categories');
       if (response.ok) {
         const data = await response.json();
         setCategories(data);
@@ -106,10 +105,13 @@ export default function TransactionsPage() {
     }
   };
 
+  // Only fetch data when account context is ready and available
   useEffect(() => {
-    fetchTransactions();
-    fetchCategories();
-  }, []);
+    if (currentAccount) {
+      fetchTransactions();
+      fetchCategories();
+    }
+  }, [currentAccount]);
 
   const handleEditTransaction = (transaction: Transaction) => {
     setEditingTransaction(transaction);
@@ -119,7 +121,7 @@ export default function TransactionsPage() {
     if (!deletingTransaction) return;
 
     try {
-      const response = await fetch(`/api/transactions/${deletingTransaction.id}`, {
+      const response = await apiFetch(`/api/transactions/${deletingTransaction.id}`, {
         method: 'DELETE',
       });
 

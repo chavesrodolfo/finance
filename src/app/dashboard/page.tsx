@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, TrendingUp, CircleDollarSign, ChevronLeft, ChevronRight } from "lucide-react";
 import { useHideValues } from "@/hooks/use-hide-values";
 import { convertToCAD } from "@/lib/currency";
+import { useAccountAwareApi } from "@/hooks/useAccountAwareApi";
+import { useAccountContext } from "@/hooks/useAccountContext";
 
 interface Transaction {
   id: string;
@@ -56,6 +58,8 @@ export default function Dashboard() {
   const [investmentAccounts, setInvestmentAccounts] = useState<InvestmentAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const { hideValues, toggleHideValues, formatValue, isLoaded } = useHideValues();
+  const { apiFetch } = useAccountAwareApi();
+  const { currentAccount } = useAccountContext();
 
   // State for card flip functionality
   const [flippedCards, setFlippedCards] = useState<{income: boolean, expenses: boolean}>({
@@ -75,13 +79,6 @@ export default function Dashboard() {
           router.push('/');
           return;
         }
-        
-        // Fetch all data in parallel
-        await Promise.all([
-          fetchTransactions(),
-          fetchBudgetItems(),
-          fetchInvestmentAccounts()
-        ]);
       } catch (error) {
         console.error('Error fetching user:', error);
       }
@@ -90,9 +87,21 @@ export default function Dashboard() {
     fetchUser();
   }, [router]);
 
+  // Only fetch data when account context is ready and available
+  useEffect(() => {
+    if (currentAccount) {
+      setLoading(true);
+      Promise.all([
+        fetchTransactions(),
+        fetchBudgetItems(),
+        fetchInvestmentAccounts()
+      ]).finally(() => setLoading(false));
+    }
+  }, [currentAccount]);
+
   const fetchTransactions = async () => {
     try {
-      const response = await fetch('/api/transactions');
+      const response = await apiFetch('/api/transactions');
       if (response.ok) {
         const data = await response.json();
         setTransactions(data);
@@ -104,7 +113,7 @@ export default function Dashboard() {
 
   const fetchBudgetItems = async () => {
     try {
-      const response = await fetch('/api/budget');
+      const response = await apiFetch('/api/budget');
       if (response.ok) {
         const data = await response.json();
         setBudgetItems(data);
@@ -118,7 +127,7 @@ export default function Dashboard() {
 
   const fetchInvestmentAccounts = async () => {
     try {
-      const response = await fetch('/api/investment-accounts');
+      const response = await apiFetch('/api/investment-accounts');
       if (response.ok) {
         const data = await response.json();
         setInvestmentAccounts(data);
@@ -265,13 +274,13 @@ export default function Dashboard() {
       </div>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {/* Income Card with Flip */}
         <div className={`flip-card ${flippedCards.income ? 'flipped' : ''}`}>
           <div className="flip-card-inner">
             {/* Front Side */}
             <Card className="p-6 glassmorphism flip-card-front cursor-pointer h-full" onClick={() => handleCardClick('income')}>
-              <div className="flex items-center space-x-4 h-full">
+              <div className="flex items-center space-x-4 min-h-[120px]">
                 <div className="p-3 bg-green-500/20 rounded-lg">
                   <TrendingUp className="h-6 w-6 text-green-500" />
                 </div>
@@ -325,7 +334,7 @@ export default function Dashboard() {
           <div className="flip-card-inner">
             {/* Front Side */}
             <Card className="p-6 glassmorphism flip-card-front cursor-pointer h-full" onClick={() => handleCardClick('expenses')}>
-              <div className="flex items-center space-x-4 h-full">
+              <div className="flex items-center space-x-4 min-h-[120px]">
                 <div className="p-3 bg-red-500/20 rounded-lg">
                   <CircleDollarSign className="h-6 w-6 text-red-500" />
                 </div>
@@ -376,7 +385,7 @@ export default function Dashboard() {
 
         {/* Total Budget Card */}
         <Card className="p-6 glassmorphism">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 min-h-[120px]">
             <div className="p-3 bg-blue-500/20 rounded-lg">
               <CircleDollarSign className="h-6 w-6 text-blue-500" />
             </div>
@@ -391,7 +400,7 @@ export default function Dashboard() {
 
         {/* Total Investments Card */}
         <Card className="p-6 glassmorphism">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 min-h-[120px]">
             <div className="p-3 bg-purple-500/20 rounded-lg">
               <TrendingUp className="h-6 w-6 text-purple-500" />
             </div>

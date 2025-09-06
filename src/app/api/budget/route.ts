@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { stackServerApp } from '@/stack';
-import { initializeUserData } from '@/lib/services/database';
+import { initializeUserData, hasAccountAccess, getUserByStackId } from '@/lib/services/database';
 import { prisma } from '@/lib/db';
 
 const CreateBudgetSchema = z.object({
@@ -13,7 +13,7 @@ const CreateBudgetSchema = z.object({
 });
 
 // GET /api/budget - Get all budget items for the user
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await stackServerApp.getUser();
     if (!user) {
@@ -22,10 +22,35 @@ export async function GET() {
 
     await initializeUserData(user.id, user.primaryEmail!, user.displayName || undefined);
 
+    const { searchParams } = new URL(request.url);
+    const targetUserId = searchParams.get('targetUserId');
+    
+    let queryUserId = user.id;
+    
+    // If targetUserId is provided, check if the user has access to that account
+    if (targetUserId) {
+      const currentUser = await getUserByStackId(user.id);
+      if (!currentUser) {
+        return NextResponse.json({ error: 'Current user not found' }, { status: 404 });
+      }
+      
+      const targetUser = await getUserByStackId(targetUserId);
+      if (!targetUser) {
+        return NextResponse.json({ error: 'Target user not found' }, { status: 404 });
+      }
+      
+      const hasAccess = await hasAccountAccess(currentUser.id, targetUser.id);
+      if (!hasAccess) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+      
+      queryUserId = targetUserId;
+    }
+
     const budgets = await prisma.budget.findMany({
       where: {
         user: {
-          stackUserId: user.id
+          stackUserId: queryUserId
         }
       },
       orderBy: {
@@ -54,14 +79,37 @@ export async function POST(request: NextRequest) {
     await initializeUserData(user.id, user.primaryEmail!, user.displayName || undefined);
 
     const body = await request.json();
-    const validatedData = CreateBudgetSchema.parse(body);
+    const { targetUserId, ...budgetData } = body;
+    const validatedData = CreateBudgetSchema.parse(budgetData);
+
+    let targetStackUserId = user.id;
+    
+    // If targetUserId is provided, check if the user has access to that account
+    if (targetUserId) {
+      const currentUser = await getUserByStackId(user.id);
+      if (!currentUser) {
+        return NextResponse.json({ error: 'Current user not found' }, { status: 404 });
+      }
+      
+      const targetUser = await getUserByStackId(targetUserId);
+      if (!targetUser) {
+        return NextResponse.json({ error: 'Target user not found' }, { status: 404 });
+      }
+      
+      const hasAccess = await hasAccountAccess(currentUser.id, targetUser.id);
+      if (!hasAccess) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+      
+      targetStackUserId = targetUserId;
+    }
 
     const dbUser = await prisma.user.findUnique({
-      where: { stackUserId: user.id }
+      where: { stackUserId: targetStackUserId }
     });
 
     if (!dbUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Target user not found' }, { status: 404 });
     }
 
     const budget = await prisma.budget.create({

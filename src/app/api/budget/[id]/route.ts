@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { stackServerApp } from '@/stack';
+import { hasAccountAccess, getUserByStackId } from '@/lib/services/database';
 import { prisma } from '@/lib/db';
 
 const UpdateBudgetSchema = z.object({
@@ -26,18 +27,29 @@ export async function PUT(
     const body = await request.json();
     const validatedData = UpdateBudgetSchema.parse(body);
 
-    // Verify budget belongs to user
-    const existingBudget = await prisma.budget.findFirst({
-      where: {
-        id: resolvedParams.id,
-        user: {
-          stackUserId: user.id
-        }
+    // Get the budget first to check ownership
+    const existingBudget = await prisma.budget.findUnique({
+      where: { id: resolvedParams.id },
+      include: {
+        user: true
       }
     });
 
     if (!existingBudget) {
       return NextResponse.json({ error: 'Budget not found' }, { status: 404 });
+    }
+
+    // Check if user owns the budget or has access to the account
+    if (existingBudget.user.stackUserId !== user.id) {
+      const currentUser = await getUserByStackId(user.id);
+      if (!currentUser) {
+        return NextResponse.json({ error: 'Current user not found' }, { status: 404 });
+      }
+      
+      const hasAccess = await hasAccountAccess(currentUser.id, existingBudget.user.id);
+      if (!hasAccess) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
     }
 
     const budget = await prisma.budget.update({
@@ -76,18 +88,21 @@ export async function DELETE(
 
     const resolvedParams = await params;
     
-    // Verify budget belongs to user
-    const existingBudget = await prisma.budget.findFirst({
-      where: {
-        id: resolvedParams.id,
-        user: {
-          stackUserId: user.id
-        }
+    // Get the budget first to check ownership
+    const existingBudget = await prisma.budget.findUnique({
+      where: { id: resolvedParams.id },
+      include: {
+        user: true
       }
     });
 
     if (!existingBudget) {
       return NextResponse.json({ error: 'Budget not found' }, { status: 404 });
+    }
+
+    // Only allow deletion if user owns the budget (no subaccount deletion access)
+    if (existingBudget.user.stackUserId !== user.id) {
+      return NextResponse.json({ error: 'Only account owners can delete budget items' }, { status: 403 });
     }
 
     await prisma.budget.delete({

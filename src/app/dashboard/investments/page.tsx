@@ -12,6 +12,8 @@ import { useExchangeRates } from "@/hooks/use-exchange-rates";
 import { useHideValues } from "@/hooks/use-hide-values";
 import { PieChart } from "@/components/ui/pie-chart";
 import { formatCurrency } from "@/lib/utils";
+import { useAccountAwareApi } from "@/hooks/useAccountAwareApi";
+import { useAccountContext } from "@/hooks/useAccountContext";
 
 interface InvestmentAccount {
   id: string;
@@ -26,6 +28,8 @@ interface InvestmentAccount {
 }
 
 export default function InvestmentsPage() {
+  const { apiFetch } = useAccountAwareApi();
+  const { currentAccount } = useAccountContext();
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const { rates, loading: ratesLoading, isLive } = useExchangeRates();
@@ -34,7 +38,7 @@ export default function InvestmentsPage() {
   const fetchAccounts = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/investment-accounts');
+      const response = await apiFetch('/api/investment-accounts');
       
       if (response.ok) {
         const data = await response.json();
@@ -58,6 +62,13 @@ export default function InvestmentsPage() {
   useEffect(() => {
     fetchAccounts();
   }, []);
+
+  // Refetch data when account context changes
+  useEffect(() => {
+    if (currentAccount) {
+      fetchAccounts();
+    }
+  }, [currentAccount]);
 
   // Helper function to convert to CAD using live rates when available
   const convertToCadWithLiveRates = (amount: number, currency: string): number => {

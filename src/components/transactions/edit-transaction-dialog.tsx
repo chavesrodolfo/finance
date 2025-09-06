@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
+import { useAccountAwareApi } from "@/hooks/useAccountAwareApi";
 
 interface Transaction {
   id: string;
@@ -61,6 +62,7 @@ export function EditTransactionDialog({
   onTransactionUpdated,
 }: EditTransactionDialogProps) {
   const [loading, setLoading] = useState(false);
+  const { apiFetch } = useAccountAwareApi();
   const [formData, setFormData] = useState({
     amount: '',
     description: '',
@@ -90,7 +92,7 @@ export function EditTransactionDialog({
     setLoading(true);
 
     try {
-      const response = await fetch(`/api/transactions/${transaction.id}`, {
+      const response = await apiFetch(`/api/transactions/${transaction.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

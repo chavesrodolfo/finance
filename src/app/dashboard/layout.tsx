@@ -8,6 +8,8 @@ import { BarChart, Home, Settings, Clock, DollarSign, PieChart, TrendingUp, Chev
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { AccountProvider } from "@/hooks/useAccountContext";
+import { AccountSwitcher } from "@/components/ui/account-switcher";
 
 export default function DashboardLayout({
   children,
@@ -67,7 +69,8 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <AccountProvider>
+      <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
       <aside 
         className={cn(
@@ -172,6 +175,9 @@ export default function DashboardLayout({
           </Link>
           
           <div className="ml-auto flex items-center gap-2">
+            {/* Account Switcher */}
+            <AccountSwitcher />
+            
             {/* Command Palette Hint */}
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted text-muted-foreground text-xs">
               <span>Quick navigation:</span>
@@ -193,23 +199,34 @@ export default function DashboardLayout({
 
         {/* Mobile Navigation */}
         <div className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background z-50">
-          <div className="grid grid-cols-5 gap-1 p-2">
-            {navItems.slice(0, 4).map((item) => (
-              <Link 
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex flex-col items-center justify-center py-2 px-1 rounded-md transition-colors",
-                  isActiveMenuItem(item.href) || hasActiveChild(item)
-                    ? "text-primary"
-                    : "text-muted-foreground"
-                )}
-              >
-                {item.icon}
-                <span className="text-xs mt-1">{item.name}</span>
-              </Link>
-            ))}
-            {/* Add the "New" item directly for mobile */}
+          <div className="grid grid-cols-6 gap-1 p-2">
+            {/* Dashboard */}
+            <Link 
+              href="/dashboard"
+              className={cn(
+                "flex flex-col items-center justify-center py-2 px-1 rounded-md transition-colors",
+                isActiveMenuItem("/dashboard")
+                  ? "text-primary"
+                  : "text-muted-foreground"
+              )}
+            >
+              <Home className="h-4 w-4" />
+              <span className="text-xs mt-1">Dashboard</span>
+            </Link>
+            {/* Transactions */}
+            <Link 
+              href="/dashboard/transactions"
+              className={cn(
+                "flex flex-col items-center justify-center py-2 px-1 rounded-md transition-colors",
+                isActiveMenuItem("/dashboard/transactions") || hasActiveChild(navItems[1])
+                  ? "text-primary"
+                  : "text-muted-foreground"
+              )}
+            >
+              <Clock className="h-4 w-4" />
+              <span className="text-xs mt-1">Transactions</span>
+            </Link>
+            {/* New Transaction */}
             <Link 
               href="/dashboard/transactions/new"
               className={cn(
@@ -222,9 +239,49 @@ export default function DashboardLayout({
               <DollarSign className="h-4 w-4" />
               <span className="text-xs mt-1">New</span>
             </Link>
+            {/* Reports */}
+            <Link 
+              href="/dashboard/reports"
+              className={cn(
+                "flex flex-col items-center justify-center py-2 px-1 rounded-md transition-colors",
+                isActiveMenuItem("/dashboard/reports")
+                  ? "text-primary"
+                  : "text-muted-foreground"
+              )}
+            >
+              <BarChart className="h-4 w-4" />
+              <span className="text-xs mt-1">Reports</span>
+            </Link>
+            {/* Budget */}
+            <Link 
+              href="/dashboard/budget"
+              className={cn(
+                "flex flex-col items-center justify-center py-2 px-1 rounded-md transition-colors",
+                isActiveMenuItem("/dashboard/budget")
+                  ? "text-primary"
+                  : "text-muted-foreground"
+              )}
+            >
+              <PieChart className="h-4 w-4" />
+              <span className="text-xs mt-1">Budget</span>
+            </Link>
+            {/* Investments */}
+            <Link 
+              href="/dashboard/investments"
+              className={cn(
+                "flex flex-col items-center justify-center py-2 px-1 rounded-md transition-colors",
+                isActiveMenuItem("/dashboard/investments")
+                  ? "text-primary"
+                  : "text-muted-foreground"
+              )}
+            >
+              <TrendingUp className="h-4 w-4" />
+              <span className="text-xs mt-1">Investments</span>
+            </Link>
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </AccountProvider>
   );
 }

@@ -25,6 +25,12 @@ model User {
   descriptions       Description[]
   investmentAccounts InvestmentAccount[]
   
+  // Subaccount relations
+  sentInvitations     SubaccountInvitation[] @relation("InviterUser")
+  receivedInvitations SubaccountInvitation[] @relation("InviteeUser") 
+  ownedAccounts       SubaccountAccess[]     @relation("AccountOwner")
+  accessibleAccounts  SubaccountAccess[]     @relation("SubaccountUser")
+  
   @@map("users")
 }
 
@@ -127,4 +133,44 @@ enum Period {
   MONTHLY
   QUARTERLY
   YEARLY
+}
+
+model SubaccountInvitation {
+  id           String                   @id @default(cuid())
+  inviterEmail String                   // Email of the account owner
+  inviteeEmail String                   // Email being invited
+  status       SubaccountInvitationStatus @default(PENDING)
+  inviterId    String?                  // Will be set once inviter is found
+  inviteeId    String?                  // Will be set once invitee registers/is found
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  
+  // Relations
+  inviter User? @relation("InviterUser", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitee User? @relation("InviteeUser", fields: [inviteeId], references: [id], onDelete: Cascade)
+  
+  @@unique([inviterEmail, inviteeEmail])
+  @@map("subaccount_invitations")
+}
+
+model SubaccountAccess {
+  id           String   @id @default(cuid())
+  ownerId      String   // Account owner
+  subaccountId String   // User with access
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  owner      User @relation("AccountOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  subaccount User @relation("SubaccountUser", fields: [subaccountId], references: [id], onDelete: Cascade)
+  
+  @@unique([ownerId, subaccountId])
+  @@map("subaccount_access")
+}
+
+enum SubaccountInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
 }

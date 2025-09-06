@@ -10,6 +10,7 @@ const createTransactionSchema = z.object({
   date: z.string().transform(str => new Date(str)),
   type: z.enum(['EXPENSE', 'INCOME', 'EXPENSE_SAVINGS', 'RETURN']),
   categoryId: z.string().min(1),
+  targetUserId: z.string().optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -30,9 +31,10 @@ export async function POST(request: NextRequest) {
     // Parse request body
     const body = await request.json()
     const validatedData = createTransactionSchema.parse(body)
+    const { targetUserId, ...transactionData } = validatedData
 
-    // Verify category belongs to user
-    const userCategories = await getUserCategories(dbUser.id)
+    // Verify category belongs to target user (or current user if no target)
+    const userCategories = await getUserCategories(dbUser.id, targetUserId)
     const categoryExists = userCategories.some(cat => cat.id === validatedData.categoryId)
     
     if (!categoryExists) {
@@ -41,9 +43,9 @@ export async function POST(request: NextRequest) {
 
     // Create transaction
     const transaction = await createTransaction({
-      ...validatedData,
+      ...transactionData,
       userId: dbUser.id
-    })
+    }, dbUser.id, targetUserId)
 
     return NextResponse.json(transaction, { status: 201 })
   } catch (error) {
@@ -75,9 +77,10 @@ export async function GET(request: NextRequest) {
     // Get query parameters
     const { searchParams } = new URL(request.url)
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined
+    const targetUserId = searchParams.get('targetUserId') || undefined
 
     // Get user transactions
-    const transactions = await getUserTransactions(dbUser.id, limit)
+    const transactions = await getUserTransactions(dbUser.id, limit, targetUserId)
 
     return NextResponse.json(transactions)
   } catch (error) {

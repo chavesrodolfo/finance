@@ -16,6 +16,8 @@ import { CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { DEFAULT_DESCRIPTIONS } from "@/lib/constants-client";
 import { iconMap } from "@/lib/category-icons";
+import { useAccountAwareApi } from "@/hooks/useAccountAwareApi";
+import { useAccountContext } from "@/hooks/useAccountContext";
 
 // Transaction types
 const transactionTypes = [
@@ -53,6 +55,8 @@ export default function NewTransactionPage() {
   const { toast } = useToast();
   const amountInputRef = useRef<HTMLInputElement>(null);
   const saveButtonRef = useRef<HTMLButtonElement>(null);
+  const { apiFetch, apiPost } = useAccountAwareApi();
+  const { currentAccount } = useAccountContext();
 
   // Focus on amount field when component mounts
   useEffect(() => {
@@ -61,31 +65,40 @@ export default function NewTransactionPage() {
     }
   }, []);
 
+  // Fetch categories function
+  const fetchCategories = async () => {
+    try {
+      setIsLoadingCategories(true);
+      const response = await apiFetch('/api/categories');
+      if (response.ok) {
+        const categoriesData = await response.json();
+        setCategories(categoriesData);
+      } else {
+        throw new Error('Failed to fetch categories');
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load categories. Please try again.",
+      });
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  };
+
   // Fetch categories when component mounts
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await fetch('/api/categories');
-        if (response.ok) {
-          const categoriesData = await response.json();
-          setCategories(categoriesData);
-        } else {
-          throw new Error('Failed to fetch categories');
-        }
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load categories. Please try again.",
-        });
-      } finally {
-        setIsLoadingCategories(false);
-      }
-    };
-
     fetchCategories();
-  }, [toast]);
+  }, []);
+
+  // Refetch categories when account context changes
+  useEffect(() => {
+    if (currentAccount) {
+      fetchCategories();
+    }
+  }, [currentAccount]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,13 +114,7 @@ export default function NewTransactionPage() {
         categoryId,
       };
 
-      const response = await fetch('/api/transactions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(transactionData),
-      });
+      const response = await apiPost('/api/transactions', transactionData);
 
       if (!response.ok) {
         const errorData = await response.json();

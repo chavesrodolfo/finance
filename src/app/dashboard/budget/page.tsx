@@ -16,6 +16,8 @@ import {
 import { AddBudgetDialog } from "@/components/budget/add-budget-dialog";
 import { EditBudgetDialog } from "@/components/budget/edit-budget-dialog";
 import { formatCurrency } from "@/lib/utils";
+import { useAccountAwareApi } from "@/hooks/useAccountAwareApi";
+import { useAccountContext } from "@/hooks/useAccountContext";
 
 interface BudgetItem {
   id: string;
@@ -33,13 +35,15 @@ export default function BudgetPage() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<BudgetItem | null>(null);
+  const { apiFetch } = useAccountAwareApi();
+  const { currentAccount } = useAccountContext();
 
   const fetchBudgetItems = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/budget');
+      const response = await apiFetch('/api/budget');
       
       if (!response.ok) {
         throw new Error('Failed to fetch budget items');
@@ -58,6 +62,13 @@ export default function BudgetPage() {
   useEffect(() => {
     fetchBudgetItems();
   }, []);
+
+  // Refetch data when account context changes
+  useEffect(() => {
+    if (currentAccount) {
+      fetchBudgetItems();
+    }
+  }, [currentAccount]);
   
   // Calculate total
   const totalBudget = items.reduce((sum, item) => sum + item.amount, 0);
