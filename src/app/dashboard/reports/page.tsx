@@ -522,7 +522,7 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  }, [apiFetch, timeRange, selectedYear, selectedCategories, selectedDescriptions, startDate, endDate, isInitialized, pendingCategories.length, pendingDescriptions.length]);
+  }, [apiFetch, timeRange, selectedYear, selectedCategories, selectedDescriptions, startDate, endDate, isInitialized]);
 
   useEffect(() => {
     if (currentAccount) {
@@ -540,6 +540,16 @@ export default function ReportsPage() {
       setIsInitialized(false);
     }
   }, [currentAccount]);
+
+  // Clear categories and descriptions when income tab is selected
+  useEffect(() => {
+    if (activeTab === 'income') {
+      setSelectedCategories([]);
+      setSelectedDescriptions([]);
+      setPendingCategories([]);
+      setPendingDescriptions([]);
+    }
+  }, [activeTab]);
 
   // Function to apply pending selections
   const applyFilters = () => {
