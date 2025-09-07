@@ -80,6 +80,7 @@ export default function ReportsPage() {
   const [expenseSavingsByCategory, setExpenseSavingsByCategory] = useState<ExpenseData[]>([]);
   const [expenseSavingsByPeriod, setExpenseSavingsByPeriod] = useState<MonthlyData[] | YearlyData[]>([]);
   const [categoryByPeriod, setCategoryByPeriod] = useState<{[period: string]: ExpenseData[]}>({});
+  const [expenseSavingsCategoryByPeriod, setExpenseSavingsCategoryByPeriod] = useState<{[period: string]: ExpenseData[]}>({});
   const [expandedPeriods, setExpandedPeriods] = useState<Set<string>>(new Set());
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -334,6 +335,18 @@ export default function ReportsPage() {
           expenseSavingsMonthlyData.sort((a, b) => new Date(a.month + " 1").getTime() - new Date(b.month + " 1").getTime());
           setExpenseSavingsByPeriod(expenseSavingsMonthlyData);
 
+          // Convert to category distribution by period for expense savings
+          const expenseSavingsCategoryByPeriodData: {[period: string]: ExpenseData[]} = {};
+          Object.entries(expenseSavingsCategoryByMonthMap).forEach(([month, categories]) => {
+            const monthTotal = expenseSavingsMonthlyMap[month];
+            expenseSavingsCategoryByPeriodData[month] = Object.entries(categories).map(([category, amount]) => ({
+              category,
+              amount,
+              percentage: monthTotal ? (amount / monthTotal) * 100 : 0
+            })).sort((a, b) => b.amount - a.amount);
+          });
+          setExpenseSavingsCategoryByPeriod(expenseSavingsCategoryByPeriodData);
+
           // Overall category totals for expense savings
           const expenseSavingsCategoryMap: { [key: string]: number } = {};
           expenseSavings.forEach((t: { amount: number; category?: { name: string }; description: string }) => {
@@ -455,6 +468,18 @@ export default function ReportsPage() {
           expenseSavingsYearlyData.sort((a, b) => parseInt(a.year) - parseInt(b.year));
           setExpenseSavingsByPeriod(expenseSavingsYearlyData);
 
+          // Convert to category distribution by period for expense savings (yearly)
+          const expenseSavingsCategoryByPeriodData: {[period: string]: ExpenseData[]} = {};
+          Object.entries(expenseSavingsCategoryByYearMap).forEach(([year, categories]) => {
+            const yearTotal = expenseSavingsYearlyMap[year];
+            expenseSavingsCategoryByPeriodData[year] = Object.entries(categories).map(([category, amount]) => ({
+              category,
+              amount,
+              percentage: yearTotal ? (amount / yearTotal) * 100 : 0
+            })).sort((a, b) => b.amount - a.amount);
+          });
+          setExpenseSavingsCategoryByPeriod(expenseSavingsCategoryByPeriodData);
+
           // Overall category totals for expense savings (yearly)
           const expenseSavingsYearlyCategoryMap: { [key: string]: number } = {};
           expenseSavings.forEach((t: { amount: number; category?: { name: string }; description: string }) => {
@@ -485,6 +510,7 @@ export default function ReportsPage() {
           setExpensesByCategory(categories);
           setExpensesByPeriod([]);
           setCategoryByPeriod({});
+          setExpenseSavingsCategoryByPeriod({});
 
           // For custom range, use overall income category data
           const incomeCategoryMap: { [key: string]: number } = {};
@@ -522,6 +548,7 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiFetch, timeRange, selectedYear, selectedCategories, selectedDescriptions, startDate, endDate, isInitialized]);
 
   useEffect(() => {
@@ -2218,13 +2245,13 @@ export default function ReportsPage() {
                   )
                 ) : (
                   // For monthly/yearly, show period-specific breakdowns
-                  Object.keys(categoryByPeriod || {}).length === 0 ? (
+                  Object.keys(expenseSavingsCategoryByPeriod || {}).length === 0 ? (
                     <div className="text-center py-8">
                       <p className="text-muted-foreground">No category data available.</p>
                     </div>
                   ) : (
                     <div className="space-y-6 h-full overflow-y-auto">
-                      {Object.entries(categoryByPeriod || {}).map(([period, categories]) => {
+                      {Object.entries(expenseSavingsCategoryByPeriod || {}).map(([period, categories]) => {
                         const safeCategories = categories || [];
                         const periodTotal = safeCategories.reduce((sum, cat) => sum + (cat?.amount || 0), 0);
                         return (
