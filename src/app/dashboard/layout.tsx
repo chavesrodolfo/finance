@@ -203,7 +203,7 @@ export default function DashboardLayout({
 
         {/* Mobile Navigation */}
         <div className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background z-50">
-          <div className="grid grid-cols-6 gap-1 p-2">
+          <div className="grid grid-cols-4 gap-1 p-2">
             {/* Dashboard */}
             <Link 
               href="/dashboard"
@@ -229,32 +229,6 @@ export default function DashboardLayout({
             >
               <Clock className="h-4 w-4" />
               <span className="text-xs mt-1">Transactions</span>
-            </Link>
-            {/* New Transaction */}
-            <Link 
-              href="/dashboard/transactions/new"
-              className={cn(
-                "flex flex-col items-center justify-center py-2 px-1 rounded-md transition-colors",
-                isActiveMenuItem("/dashboard/transactions/new")
-                  ? "text-primary"
-                  : "text-muted-foreground"
-              )}
-            >
-              <DollarSign className="h-4 w-4" />
-              <span className="text-xs mt-1">New</span>
-            </Link>
-            {/* Reports */}
-            <Link 
-              href="/dashboard/reports"
-              className={cn(
-                "flex flex-col items-center justify-center py-2 px-1 rounded-md transition-colors",
-                isActiveMenuItem("/dashboard/reports")
-                  ? "text-primary"
-                  : "text-muted-foreground"
-              )}
-            >
-              <BarChart className="h-4 w-4" />
-              <span className="text-xs mt-1">Reports</span>
             </Link>
             {/* Budget */}
             <Link 

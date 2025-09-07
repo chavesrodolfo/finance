@@ -32,8 +32,21 @@ export default function InvestmentsPage() {
   const { currentAccount } = useAccountContext();
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const { rates, loading: ratesLoading, isLive } = useExchangeRates();
   const { hideValues, toggleHideValues, formatValue, isLoaded } = useHideValues();
+
+  // Detect screen size
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   const fetchAccounts = async () => {
     try {
@@ -132,9 +145,9 @@ export default function InvestmentsPage() {
               {/* Pie Chart Skeleton */}
               <div className="flex justify-center">
                 <div className="relative">
-                  <Skeleton className="w-[420px] h-[420px] rounded-full" />
+                  <Skeleton className={`${isMobile ? 'w-[280px] h-[280px]' : 'w-[420px] h-[420px]'} rounded-full`} />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <Skeleton className="w-[168px] h-[168px] rounded-full bg-background" />
+                    <Skeleton className={`${isMobile ? 'w-[112px] h-[112px]' : 'w-[168px] h-[168px]'} rounded-full bg-background`} />
                   </div>
                 </div>
               </div>
@@ -319,7 +332,7 @@ export default function InvestmentsPage() {
                           color: colors[index % colors.length]
                         };
                       })}
-                    size={420}
+                    size={isMobile ? 280 : 420}
                   />
                 </div>
                 
