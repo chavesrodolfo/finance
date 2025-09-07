@@ -77,6 +77,8 @@ export default function ReportsPage() {
   const [expensesByPeriod, setExpensesByPeriod] = useState<MonthlyData[] | YearlyData[]>([]);
   const [incomeByCategory, setIncomeByCategory] = useState<ExpenseData[]>([]);
   const [incomeByPeriod, setIncomeByPeriod] = useState<MonthlyData[] | YearlyData[]>([]);
+  const [expenseSavingsByCategory, setExpenseSavingsByCategory] = useState<ExpenseData[]>([]);
+  const [expenseSavingsByPeriod, setExpenseSavingsByPeriod] = useState<MonthlyData[] | YearlyData[]>([]);
   const [categoryByPeriod, setCategoryByPeriod] = useState<{[period: string]: ExpenseData[]}>({});
   const [expandedPeriods, setExpandedPeriods] = useState<Set<string>>(new Set());
   const [showAllCategories, setShowAllCategories] = useState(false);
@@ -90,7 +92,9 @@ export default function ReportsPage() {
   const [filteredTransactions, setFilteredTransactions] = useState<TransactionData[]>([]);
   const [filteredExpenseTransactions, setFilteredExpenseTransactions] = useState<TransactionData[]>([]);
   const [filteredIncomeTransactions, setFilteredIncomeTransactions] = useState<TransactionData[]>([]);
+  const [filteredExpenseSavingsTransactions, setFilteredExpenseSavingsTransactions] = useState<TransactionData[]>([]);
   const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set());
+  const [isInitialized, setIsInitialized] = useState(false);
   
   // Multi-select dropdown states
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
@@ -129,18 +133,18 @@ export default function ReportsPage() {
         
         // Always initialize with all categories and descriptions selected on first load
         // Check if this is the initial load (when selectedCategories is empty)
-        if (selectedCategories.length === 0 && sortedCategories.length > 0) {
+        if (!isInitialized && selectedCategories.length === 0 && sortedCategories.length > 0) {
           setSelectedCategories(sortedCategories);
           setPendingCategories(sortedCategories);
+          setSelectedDescriptions(sortedDescriptions);
+          setPendingDescriptions(sortedDescriptions);
+          setIsInitialized(true);
         } else if (selectedCategories.length > 0 && pendingCategories.length === 0) {
           // Ensure pending categories are synced if they weren't set
           setPendingCategories(selectedCategories);
         }
         
-        if (selectedDescriptions.length === 0 && sortedDescriptions.length > 0) {
-          setSelectedDescriptions(sortedDescriptions);
-          setPendingDescriptions(sortedDescriptions);
-        } else if (selectedDescriptions.length > 0 && pendingDescriptions.length === 0) {
+        if (selectedDescriptions.length > 0 && pendingDescriptions.length === 0) {
           // Ensure pending descriptions are synced if they weren't set
           setPendingDescriptions(selectedDescriptions);
         }
@@ -210,15 +214,18 @@ export default function ReportsPage() {
         
         setFilteredTransactions(mappedTransactions);
         
-        // Separate expense and income transactions for individual tabs
-        setFilteredExpenseTransactions(mappedTransactions.filter((t: TransactionData) => t.type === "EXPENSE" || t.type === "EXPENSE_SAVINGS"));
+        // Separate expense, income, and expense savings transactions for individual tabs
+        setFilteredExpenseTransactions(mappedTransactions.filter((t: TransactionData) => t.type === "EXPENSE"));
         setFilteredIncomeTransactions(mappedTransactions.filter((t: TransactionData) => t.type === "INCOME"));
+        setFilteredExpenseSavingsTransactions(mappedTransactions.filter((t: TransactionData) => t.type === "EXPENSE_SAVINGS"));
 
         // Process analytics with filtered data
-        const expenses = filteredData.filter((t: { type: string }) => t.type === "EXPENSE" || t.type === "EXPENSE_SAVINGS");
+        const expenses = filteredData.filter((t: { type: string }) => t.type === "EXPENSE");
         const income = filteredData.filter((t: { type: string }) => t.type === "INCOME");
+        const expenseSavings = filteredData.filter((t: { type: string }) => t.type === "EXPENSE_SAVINGS");
         const total = expenses.reduce((sum: number, t: { amount: number }) => sum + Math.abs(t.amount), 0);
         const incomeTotal = income.reduce((sum: number, t: { amount: number }) => sum + Math.abs(t.amount), 0);
+        const expenseSavingsTotal = expenseSavings.reduce((sum: number, t: { amount: number }) => sum + Math.abs(t.amount), 0);
         
         if (timeRange === "monthly") {
           // Group expenses by month and category
@@ -304,6 +311,42 @@ export default function ReportsPage() {
           }));
           incomeCategories.sort((a, b) => b.amount - a.amount);
           setIncomeByCategory(incomeCategories);
+
+          // Process expense savings data
+          const expenseSavingsMonthlyMap: { [key: string]: number } = {};
+          const expenseSavingsCategoryByMonthMap: { [month: string]: { [category: string]: number } } = {};
+          
+          expenseSavings.forEach((t: { amount: number; date: string; category?: { name: string }; description: string }) => {
+            const date = new Date(t.date);
+            const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            const categoryName = t.category?.name || "Uncategorized";
+            const amount = Math.abs(t.amount);
+            
+            // Total by month
+            expenseSavingsMonthlyMap[monthKey] = (expenseSavingsMonthlyMap[monthKey] || 0) + amount;
+            
+            // Category by month
+            if (!expenseSavingsCategoryByMonthMap[monthKey]) expenseSavingsCategoryByMonthMap[monthKey] = {};
+            expenseSavingsCategoryByMonthMap[monthKey][categoryName] = (expenseSavingsCategoryByMonthMap[monthKey][categoryName] || 0) + amount;
+          });
+          
+          const expenseSavingsMonthlyData = Object.entries(expenseSavingsMonthlyMap).map(([month, amount]) => ({ month, amount }));
+          expenseSavingsMonthlyData.sort((a, b) => new Date(a.month + " 1").getTime() - new Date(b.month + " 1").getTime());
+          setExpenseSavingsByPeriod(expenseSavingsMonthlyData);
+
+          // Overall category totals for expense savings
+          const expenseSavingsCategoryMap: { [key: string]: number } = {};
+          expenseSavings.forEach((t: { amount: number; category?: { name: string }; description: string }) => {
+            const categoryName = t.category?.name || "Uncategorized";
+            expenseSavingsCategoryMap[categoryName] = (expenseSavingsCategoryMap[categoryName] || 0) + Math.abs(t.amount);
+          });
+          const expenseSavingsCategories = Object.entries(expenseSavingsCategoryMap).map(([category, amount]) => ({
+            category,
+            amount,
+            percentage: expenseSavingsTotal ? (amount / expenseSavingsTotal) * 100 : 0
+          }));
+          expenseSavingsCategories.sort((a, b) => b.amount - a.amount);
+          setExpenseSavingsByCategory(expenseSavingsCategories);
           
         } else if (timeRange === "yearly") {
           // Group by year and category
@@ -389,6 +432,42 @@ export default function ReportsPage() {
           }));
           incomeYearlyCategories.sort((a, b) => b.amount - a.amount);
           setIncomeByCategory(incomeYearlyCategories);
+
+          // Process expense savings data (yearly)
+          const expenseSavingsYearlyMap: { [key: string]: number } = {};
+          const expenseSavingsCategoryByYearMap: { [year: string]: { [category: string]: number } } = {};
+          
+          expenseSavings.forEach((t: { amount: number; date: string; category?: { name: string }; description: string }) => {
+            const date = new Date(t.date);
+            const year = date.getFullYear().toString();
+            const categoryName = t.category?.name || "Uncategorized";
+            const amount = Math.abs(t.amount);
+            
+            // Total by year
+            expenseSavingsYearlyMap[year] = (expenseSavingsYearlyMap[year] || 0) + amount;
+            
+            // Category by year
+            if (!expenseSavingsCategoryByYearMap[year]) expenseSavingsCategoryByYearMap[year] = {};
+            expenseSavingsCategoryByYearMap[year][categoryName] = (expenseSavingsCategoryByYearMap[year][categoryName] || 0) + amount;
+          });
+          
+          const expenseSavingsYearlyData = Object.entries(expenseSavingsYearlyMap).map(([year, amount]) => ({ year, amount }));
+          expenseSavingsYearlyData.sort((a, b) => parseInt(a.year) - parseInt(b.year));
+          setExpenseSavingsByPeriod(expenseSavingsYearlyData);
+
+          // Overall category totals for expense savings (yearly)
+          const expenseSavingsYearlyCategoryMap: { [key: string]: number } = {};
+          expenseSavings.forEach((t: { amount: number; category?: { name: string }; description: string }) => {
+            const categoryName = t.category?.name || "Uncategorized";
+            expenseSavingsYearlyCategoryMap[categoryName] = (expenseSavingsYearlyCategoryMap[categoryName] || 0) + Math.abs(t.amount);
+          });
+          const expenseSavingsYearlyCategories = Object.entries(expenseSavingsYearlyCategoryMap).map(([category, amount]) => ({
+            category,
+            amount,
+            percentage: expenseSavingsTotal ? (amount / expenseSavingsTotal) * 100 : 0
+          }));
+          expenseSavingsYearlyCategories.sort((a, b) => b.amount - a.amount);
+          setExpenseSavingsByCategory(expenseSavingsYearlyCategories);
           
         } else {
           // For custom range, use overall category data
@@ -421,6 +500,21 @@ export default function ReportsPage() {
           incomeCategories.sort((a, b) => b.amount - a.amount);
           setIncomeByCategory(incomeCategories);
           setIncomeByPeriod([]);
+
+          // For custom range, use overall expense savings category data
+          const expenseSavingsCategoryMap: { [key: string]: number } = {};
+          expenseSavings.forEach((t: { amount: number; category?: { name: string }; description: string }) => {
+            const categoryName = t.category?.name || "Uncategorized";
+            expenseSavingsCategoryMap[categoryName] = (expenseSavingsCategoryMap[categoryName] || 0) + Math.abs(t.amount);
+          });
+          const expenseSavingsCategories = Object.entries(expenseSavingsCategoryMap).map(([category, amount]) => ({
+            category,
+            amount,
+            percentage: expenseSavingsTotal ? (amount / expenseSavingsTotal) * 100 : 0
+          }));
+          expenseSavingsCategories.sort((a, b) => b.amount - a.amount);
+          setExpenseSavingsByCategory(expenseSavingsCategories);
+          setExpenseSavingsByPeriod([]);
         }
 
     } catch (err: unknown) {
@@ -428,7 +522,7 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  }, [apiFetch, timeRange, selectedYear, selectedCategories, selectedDescriptions, startDate, endDate, pendingCategories.length, pendingDescriptions.length]);
+  }, [apiFetch, timeRange, selectedYear, selectedCategories, selectedDescriptions, startDate, endDate]);
 
   useEffect(() => {
     if (currentAccount) {
@@ -443,6 +537,7 @@ export default function ReportsPage() {
       setSelectedDescriptions([]);
       setPendingCategories([]);
       setPendingDescriptions([]);
+      setIsInitialized(false);
     }
   }, [currentAccount]);
 
@@ -811,8 +906,9 @@ export default function ReportsPage() {
         </div>
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
+            <TabsTrigger value="expense-savings">Expense Savings</TabsTrigger>
             <TabsTrigger value="income">Income</TabsTrigger>
           </TabsList>
           
@@ -1597,6 +1693,814 @@ export default function ReportsPage() {
                     <span className="font-medium text-lg">
                       {formatCurrency(
                         filteredExpenseTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0)
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          </TabsContent>
+
+          <TabsContent value="expense-savings" className="space-y-6">
+            <div className="flex flex-col gap-4 mb-6">
+            <div className="flex gap-4 items-center flex-wrap">
+              <div className="flex gap-2">
+                <Button
+                  variant={timeRange === "monthly" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTimeRange("monthly")}
+                >
+                  Monthly
+                </Button>
+                <Button
+                  variant={timeRange === "yearly" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTimeRange("yearly")}
+                >
+                  Yearly
+                </Button>
+                <Button
+                  variant={timeRange === "custom" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTimeRange("custom")}
+                >
+                  Custom
+                </Button>
+              </div>
+              
+              {/* Year Selector for Monthly Reports */}
+              {timeRange === "monthly" && availableYears.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="year-selector" className="text-sm font-medium whitespace-nowrap">
+                    Year:
+                  </Label>
+                  <Select value={selectedYear.toString()} onValueChange={(year) => setSelectedYear(parseInt(year))}>
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableYears.map((year) => (
+                        <SelectItem key={year} value={year.toString()}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
+              {/* Category Multi-Select */}
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium whitespace-nowrap">
+                  Categories:
+                </Label>
+                <div className="relative">
+                  <button 
+                    className="flex h-10 w-60 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
+                  >
+                    <span className="truncate">
+                      {selectedCategories.length === 0 
+                        ? "Select categories..."
+                        : selectedCategories.length === allCategories.length
+                        ? "All categories"
+                        : `${selectedCategories.length} categories selected`
+                      }
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </button>
+                  
+                  {categoryDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-1 w-60 bg-popover border rounded-md shadow-md z-50 p-3">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium">Categories</label>
+                          <div className="flex gap-1">
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 px-2 text-xs"
+                              onClick={() => setPendingCategories(allCategories)}
+                            >
+                              All
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 px-2 text-xs"
+                              onClick={() => setPendingCategories([])}
+                            >
+                              None
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 px-2 text-xs"
+                              onClick={() => setCategoryDropdownOpen(false)}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="max-h-48 overflow-y-auto space-y-1">
+                          {allCategories.map((category) => (
+                            <div
+                              key={category}
+                              className="flex items-center space-x-2 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded px-2 py-1"
+                              onClick={() => {
+                                const isSelected = pendingCategories.includes(category);
+                                if (isSelected) {
+                                  setPendingCategories(pendingCategories.filter(c => c !== category));
+                                } else {
+                                  setPendingCategories([...pendingCategories, category]);
+                                }
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={pendingCategories.includes(category)}
+                                readOnly
+                                className="h-4 w-4"
+                              />
+                              <span className="text-sm truncate flex-1">{category}</span>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {hasPendingChanges && (
+                          <div className="flex gap-2 pt-2 border-t">
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-4 flex-1"
+                              onClick={() => {
+                                applyFilters();
+                                setCategoryDropdownOpen(false);
+                              }}
+                            >
+                              Apply
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 px-4 flex-1"
+                              onClick={() => {
+                                setPendingCategories(selectedCategories);
+                                setPendingDescriptions(selectedDescriptions);
+                              }}
+                            >
+                              Reset
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Description Multi-Select */}
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium whitespace-nowrap">
+                  Descriptions:
+                </Label>
+                <div className="relative">
+                  <button 
+                    className="flex h-10 w-60 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => setDescriptionDropdownOpen(!descriptionDropdownOpen)}
+                  >
+                    <span className="truncate">
+                      {selectedDescriptions.length === 0 
+                        ? "Select descriptions..."
+                        : selectedDescriptions.length === allDescriptions.length
+                        ? "All descriptions"
+                        : `${selectedDescriptions.length} descriptions selected`
+                      }
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </button>
+                  
+                  {descriptionDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-1 w-60 bg-popover border rounded-md shadow-md z-50 p-3">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium">Descriptions</label>
+                          <div className="flex gap-1">
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 px-2 text-xs"
+                              onClick={() => setPendingDescriptions(allDescriptions)}
+                            >
+                              All
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 px-2 text-xs"
+                              onClick={() => setPendingDescriptions([])}
+                            >
+                              None
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 px-2 text-xs"
+                              onClick={() => setDescriptionDropdownOpen(false)}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="max-h-48 overflow-y-auto space-y-1">
+                          {allDescriptions.map((description) => (
+                            <div
+                              key={description}
+                              className="flex items-center space-x-2 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded px-2 py-1"
+                              onClick={() => {
+                                const isSelected = pendingDescriptions.includes(description);
+                                if (isSelected) {
+                                  setPendingDescriptions(pendingDescriptions.filter(d => d !== description));
+                                } else {
+                                  setPendingDescriptions([...pendingDescriptions, description]);
+                                }
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={pendingDescriptions.includes(description)}
+                                readOnly
+                                className="h-4 w-4"
+                              />
+                              <span className="text-sm truncate flex-1">{description}</span>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {hasPendingChanges && (
+                          <div className="flex gap-2 pt-2 border-t">
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-4 flex-1"
+                              onClick={() => {
+                                applyFilters();
+                                setDescriptionDropdownOpen(false);
+                              }}
+                            >
+                              Apply
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 px-4 flex-1"
+                              onClick={() => {
+                                setPendingCategories(selectedCategories);
+                                setPendingDescriptions(selectedDescriptions);
+                              }}
+                            >
+                              Reset
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            {/* Custom Date Range Fields */}
+            {timeRange === "custom" && (
+              <div className="flex gap-4 p-4 border rounded-lg bg-muted/50">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="start-date" className="text-sm font-medium">
+                    Start Date
+                  </Label>
+                  <Input
+                    id="start-date"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-40"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="end-date" className="text-sm font-medium">
+                    End Date
+                  </Label>
+                  <Input
+                    id="end-date"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-40"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-3 gap-6 mt-6">
+            <Card className="md:col-span-3 lg:col-span-2 bg-card text-card-foreground border">
+              <CardHeader>
+                <CardTitle>
+                  {timeRange === 'monthly' ? 'Expense Savings by Month' : 
+                   timeRange === 'yearly' ? 'Expense Savings by Year' : 
+                   'Expense Savings by Category'
+                  }
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="w-full">
+                  {/* Show toggle for categories when there are many */}
+                  {timeRange === 'custom' && (expenseSavingsByCategory || []).length > 10 && (
+                    <div className="flex justify-end mb-4">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => setShowAllCategories(!showAllCategories)}
+                      >
+                        {showAllCategories ? "Show Top 10" : `Show All ${(expenseSavingsByCategory || []).length}`}
+                      </Button>
+                    </div>
+                  )}
+                  
+                  <div className="space-y-2">
+                    {(() => {
+                      const data = timeRange === 'custom' 
+                        ? (showAllCategories ? (expenseSavingsByCategory || []) : (expenseSavingsByCategory || []).slice(0, 10))
+                        : (expenseSavingsByPeriod || []);
+                      const totalAmount = timeRange === 'custom' 
+                        ? (expenseSavingsByCategory || []).reduce((sum, item) => sum + (item?.amount || 0), 0)
+                        : (expenseSavingsByPeriod || []).reduce((sum, item) => sum + (item?.amount || 0), 0);
+                      const maxAmount = Math.max(...(data || []).map(item => item?.amount || 0), 0);
+                      
+                      if (!data || data.length === 0) {
+                        return (
+                          <div className="text-center py-8">
+                            <p className="text-muted-foreground">No expense savings data available for the selected period.</p>
+                          </div>
+                        );
+                      }
+
+                      return data.map((item: any, index: number) => {
+                        const barWidth = Math.max(((item?.amount || 0) / maxAmount) * 100, 1);
+                        const label = timeRange === 'custom' ? (item?.category || 'Unknown') : 
+                                     timeRange === 'monthly' ? (item?.month || 'Unknown') : 
+                                     (item?.year || 'Unknown');
+                        const colorClass = "bg-pink-400";
+                        
+                        return (
+                          <div key={index} className="flex items-center gap-3">
+                            <div className="flex-shrink-0 w-20 sm:w-24 text-right">
+                              <span className="text-xs sm:text-sm font-medium text-foreground truncate block">
+                                {label.length > 12 ? `${label.substring(0, 12)}...` : label}
+                              </span>
+                            </div>
+                            
+                            <div className="flex-1 relative">
+                              <div className="w-full bg-muted rounded-full h-6 sm:h-8 relative overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full ${colorClass} transition-all duration-500 ease-out relative`}
+                                  style={{ width: `${barWidth}%` }}
+                                >
+                                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                                </div>
+                              </div>
+                              
+                              <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                                <span className="text-xs font-medium text-white drop-shadow-sm">
+                                  {formatCurrency(item?.amount || 0)}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="flex-shrink-0 w-12 sm:w-16 text-left">
+                              <span className="text-xs text-muted-foreground">
+                                {((item?.amount || 0) / totalAmount * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                  
+                  {/* Legend */}
+                  <div className="mt-3 pt-2 border-t border-border">
+                    <div className="flex items-center justify-end text-sm">
+                      <span className="text-muted-foreground">Max: {formatCurrency(
+                        Math.max(...(timeRange === 'custom' ? expenseSavingsByCategory : expenseSavingsByPeriod || []).map(item => item?.amount || 0), 0)
+                      )}</span>
+                    </div>
+                  </div>
+                </div>
+                {/* Stats at bottom */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 border-t border-border pt-2 mt-2">
+                  <div className="flex flex-col items-center p-1">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground text-center">Total Expense Savings</span>
+                    <span className="text-lg sm:text-2xl font-bold text-pink-400">
+                      {formatCurrency(
+                        timeRange === 'custom' 
+                          ? (expenseSavingsByCategory || []).reduce((sum, item) => sum + (item?.amount || 0), 0)
+                          : (expenseSavingsByPeriod || []).reduce((sum, item) => sum + (item?.amount || 0), 0)
+                      )}
+                    </span>
+                  </div>
+                  
+                  {timeRange !== 'custom' && (
+                    <div className="flex flex-col items-center p-1">
+                      <span className="text-[10px] sm:text-xs text-muted-foreground text-center">
+                        Average per {timeRange === 'monthly' ? 'Month' : 'Year'}
+                      </span>
+                      <span className="text-sm sm:text-xl font-bold">
+                        {formatCurrency(
+                          expenseSavingsByPeriod && expenseSavingsByPeriod.length > 0 
+                            ? expenseSavingsByPeriod.reduce((sum, item) => sum + (item?.amount || 0), 0) / expenseSavingsByPeriod.length 
+                            : 0
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  
+                  <div className="flex flex-col items-center p-1">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground text-center">
+                      {timeRange === 'monthly' ? 'Top Month' : 
+                       timeRange === 'yearly' ? 'Top Year' : 'Top Category'}
+                    </span>
+                    <span className="text-sm sm:text-lg font-bold text-center">
+                      {timeRange === 'custom' 
+                        ? (expenseSavingsByCategory || [])[0]?.category || "N/A"
+                        : timeRange === 'monthly' 
+                          ? ((expenseSavingsByPeriod || [])[0] as MonthlyData)?.month || "N/A"
+                          : ((expenseSavingsByPeriod || [])[0] as YearlyData)?.year || "N/A"
+                      }
+                    </span>
+                  </div>
+                  
+                  <div className="flex flex-col items-center p-1">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground text-center">
+                      {timeRange === 'monthly' ? 'Months' : 
+                       timeRange === 'yearly' ? 'Years' : 'Categories'}
+                    </span>
+                    <span className="text-sm sm:text-xl font-bold">
+                      {timeRange === 'custom' ? (expenseSavingsByCategory || []).length : (expenseSavingsByPeriod || []).length}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-card text-card-foreground border h-full max-h-[600px] overflow-hidden">
+              <CardHeader className="pb-4">
+                <CardTitle>Category Distribution</CardTitle>
+              </CardHeader>
+              <CardContent className="h-full overflow-y-auto">
+                {timeRange === 'custom' ? (
+                  // For custom range, show overall category breakdown
+                  (expenseSavingsByCategory || []).length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No category data available.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 h-full">
+                      <div>
+                        <h4 className="text-sm font-medium mb-3">Overall Distribution</h4>
+                        <p className="text-xs text-muted-foreground mb-4">
+                          Visual breakdown showing how your expense savings are distributed across the selected categories and descriptions for the selected period.
+                        </p>
+                        <div className="h-4 w-full bg-muted rounded-full overflow-hidden mb-4">
+                          {(expenseSavingsByCategory || []).map((item, index) => {
+                            const totalAmount = (expenseSavingsByCategory || []).reduce((sum, cat) => sum + (cat?.amount || 0), 0);
+                            const percentage = totalAmount > 0 ? ((item?.amount || 0) / totalAmount) * 100 : 0;
+                            const colors = [
+                              "bg-red-500", "bg-orange-500", "bg-yellow-500", 
+                              "bg-pink-500", "bg-purple-500", "bg-indigo-500",
+                              "bg-blue-500", "bg-teal-500", "bg-green-500", "bg-cyan-500"
+                            ];
+                            return (
+                              <div
+                                key={item?.category || 'unknown'}
+                                className={`h-full ${colors[index % colors.length]} inline-block`}
+                                style={{ width: `${percentage}%` }}
+                              />
+                            );
+                          })}
+                        </div>
+                        
+                        <div className="grid grid-cols-1 gap-2">
+                          {(expenseSavingsByCategory || []).map((item, index) => (
+                            <div key={item.category} className="flex items-center gap-2">
+                              <div 
+                                className={`w-3 h-3 rounded-full ${
+                                  index === 0 ? "bg-red-500" :
+                                  index === 1 ? "bg-orange-500" :
+                                  index === 2 ? "bg-yellow-500" :
+                                  index === 3 ? "bg-pink-500" :
+                                  index === 4 ? "bg-purple-500" :
+                                  index === 5 ? "bg-indigo-500" :
+                                  index === 6 ? "bg-blue-500" :
+                                  index === 7 ? "bg-teal-500" :
+                                  index === 8 ? "bg-green-500" :
+                                  "bg-cyan-500"
+                                }`} 
+                              />
+                              <span className="text-xs flex-1">{item?.category || 'Unknown'}</span>
+                              <span className="text-xs font-medium">{formatCurrency(item?.amount || 0)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="pt-4 border-t border-border">
+                        <div className="flex justify-between">
+                          <span className="font-medium">Total</span>
+                          <span className="font-bold text-pink-400">
+                            {formatCurrency((expenseSavingsByCategory || []).reduce((sum, cat) => sum + (cat?.amount || 0), 0))}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  // For monthly/yearly, show period-specific breakdowns
+                  Object.keys(categoryByPeriod || {}).length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No category data available.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6 h-full overflow-y-auto">
+                      {Object.entries(categoryByPeriod || {}).map(([period, categories]) => {
+                        const safeCategories = categories || [];
+                        const periodTotal = safeCategories.reduce((sum, cat) => sum + (cat?.amount || 0), 0);
+                        return (
+                          <div key={period} className="border rounded-lg p-3">
+                            <div className="flex justify-between items-center mb-3">
+                              <h4 className="text-sm font-medium">{period}</h4>
+                              <span className="text-sm font-bold text-pink-400">{formatCurrency(periodTotal)}</span>
+                            </div>
+                            
+                            <div className="h-3 w-full bg-muted rounded-full overflow-hidden mb-3">
+                              {safeCategories.map((item, index) => {
+                                const percentage = periodTotal > 0 ? ((item?.amount || 0) / periodTotal) * 100 : 0;
+                                const colors = [
+                                  "bg-red-500", "bg-orange-500", "bg-yellow-500", 
+                                  "bg-pink-500", "bg-purple-500", "bg-indigo-500",
+                                  "bg-blue-500", "bg-teal-500", "bg-green-500", "bg-cyan-500"
+                                ];
+                                return (
+                                  <div
+                                    key={item?.category || 'unknown'}
+                                    className={`h-full ${colors[index % colors.length]} inline-block`}
+                                    style={{ width: `${percentage}%` }}
+                                  />
+                                );
+                              })}
+                            </div>
+                            
+                            <div className="space-y-1">
+                              {(expandedPeriods.has(period) ? safeCategories : safeCategories.slice(0, 5)).map((item, index) => (
+                                <div key={item.category} className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div 
+                                      className={`w-2 h-2 rounded-full ${
+                                        index === 0 ? "bg-red-500" :
+                                        index === 1 ? "bg-orange-500" :
+                                        index === 2 ? "bg-yellow-500" :
+                                        index === 3 ? "bg-pink-500" :
+                                        index === 4 ? "bg-purple-500" :
+                                        index === 5 ? "bg-indigo-500" :
+                                        index === 6 ? "bg-blue-500" :
+                                        index === 7 ? "bg-teal-500" :
+                                        "bg-green-500"
+                                      }`} 
+                                    />
+                                    <span className="text-xs">{item?.category || 'Unknown'}</span>
+                                  </div>
+                                  <span className="text-xs font-medium">{formatCurrency(item?.amount || 0)}</span>
+                                </div>
+                              ))}
+                              {safeCategories.length > 5 && (
+                                <button 
+                                  onClick={() => togglePeriodExpansion(period)}
+                                  className="text-xs text-pink-400 hover:text-pink-500 text-center pt-1 w-full cursor-pointer"
+                                >
+                                  {expandedPeriods.has(period) 
+                                    ? "Show less" 
+                                    : `+${safeCategories.length - 5} more categories`
+                                  }
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Transactions Data Table */}
+          {filteredExpenseSavingsTransactions.length > 0 && (
+            <Card className="bg-card text-card-foreground border mt-6">
+              <CardHeader>
+                <CardTitle>
+                  Expense Savings Transaction Details ({filteredExpenseSavingsTransactions.length} transactions)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="max-h-96 overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-8"></TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Notes</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredExpenseSavingsTransactions.map((transaction) => (
+                        <React.Fragment key={transaction.id}>
+                          <TableRow>
+                            <TableCell>
+                              <button
+                                onClick={() => toggleTransactionExpansion(transaction.id)}
+                                className="p-1 hover:bg-muted rounded transition-colors"
+                              >
+                                <ChevronDown 
+                                  className={`h-4 w-4 transition-transform ${
+                                    expandedTransactions.has(transaction.id) ? 'rotate-180' : ''
+                                  }`}
+                                />
+                              </button>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="font-medium">
+                                  {new Date(transaction.date).toLocaleDateString()}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(transaction.date).toLocaleDateString('en-US', { 
+                                    weekday: 'short' 
+                                  })}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span 
+                                className="inline-block px-2 py-1 text-xs font-medium rounded-md"
+                                style={{
+                                  backgroundColor: transaction.category?.color 
+                                    ? `${transaction.category.color}20` 
+                                    : 'rgb(var(--muted))',
+                                  color: transaction.category?.color || 'rgb(var(--muted-foreground))',
+                                  borderColor: transaction.category?.color || 'rgb(var(--border))'
+                                }}
+                              >
+                                {transaction.category?.name || "Uncategorized"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="max-w-xs">
+                              <div className="font-medium truncate" title={transaction.description}>
+                                {transaction.description.length > 30 
+                                  ? `${transaction.description.substring(0, 30)}...`
+                                  : transaction.description
+                                }
+                              </div>
+                            </TableCell>
+                            <TableCell className="max-w-xs">
+                              {transaction.notes ? (
+                                <div className="text-sm text-muted-foreground truncate" title={transaction.notes}>
+                                  {transaction.notes.length > 25 
+                                    ? `${transaction.notes.substring(0, 25)}...`
+                                    : transaction.notes
+                                  }
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground italic">No notes</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <span className="inline-block px-2 py-1 text-xs font-medium rounded-md bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200">
+                                {transaction.type.replace('_', ' ')}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right font-mono">
+                              <span className="text-pink-400 dark:text-pink-400">
+                                -{formatCurrency(Math.abs(transaction.amount))}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                          
+                          {/* Expanded row with full details */}
+                          {expandedTransactions.has(transaction.id) && (
+                            <TableRow>
+                              <TableCell></TableCell>
+                              <TableCell colSpan={6}>
+                                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                      <h4 className="font-medium text-sm mb-2">Transaction Details</h4>
+                                      <div className="space-y-2 text-sm">
+                                        <div>
+                                          <span className="text-muted-foreground">ID:</span>
+                                          <span className="ml-2 font-mono text-xs">{transaction.id}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Full Description:</span>
+                                          <p className="ml-2 mt-1">{transaction.description}</p>
+                                        </div>
+                                        {transaction.notes && (
+                                          <div>
+                                            <span className="text-muted-foreground">Notes:</span>
+                                            <p className="ml-2 mt-1">{transaction.notes}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <h4 className="font-medium text-sm mb-2">Timestamps</h4>
+                                      <div className="space-y-2 text-sm">
+                                        <div>
+                                          <span className="text-muted-foreground">Transaction Date:</span>
+                                          <div className="ml-2">
+                                            {new Date(transaction.date).toLocaleDateString('en-US', {
+                                              weekday: 'long',
+                                              year: 'numeric',
+                                              month: 'long',
+                                              day: 'numeric'
+                                            })}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Created:</span>
+                                          <div className="ml-2">
+                                            {new Date(transaction.createdAt).toLocaleString('en-US', {
+                                              weekday: 'short',
+                                              year: 'numeric',
+                                              month: 'short',
+                                              day: 'numeric',
+                                              hour: '2-digit',
+                                              minute: '2-digit'
+                                            })}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Last Updated:</span>
+                                          <div className="ml-2">
+                                            {new Date(transaction.updatedAt).toLocaleString('en-US', {
+                                              weekday: 'short',
+                                              year: 'numeric',
+                                              month: 'short',
+                                              day: 'numeric',
+                                              hour: '2-digit',
+                                              minute: '2-digit'
+                                            })}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  {transaction.category && (
+                                    <div className="pt-3 border-t border-border/50">
+                                      <h4 className="font-medium text-sm mb-2">Category Information</h4>
+                                      <div className="flex items-center gap-3">
+                                        <span 
+                                          className="px-3 py-1 text-sm font-medium rounded-md"
+                                          style={{
+                                            backgroundColor: transaction.category.color 
+                                              ? `${transaction.category.color}30` 
+                                              : 'rgb(var(--muted))',
+                                            color: transaction.category.color || 'rgb(var(--muted-foreground))'
+                                          }}
+                                        >
+                                          {transaction.category.icon && (
+                                            <span className="mr-2">{transaction.category.icon}</span>
+                                          )}
+                                          {transaction.category.name}
+                                        </span>
+                                        {transaction.category.color && (
+                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <div 
+                                              className="w-3 h-3 rounded-full"
+                                              style={{ backgroundColor: transaction.category.color }}
+                                            ></div>
+                                            <span>{transaction.category.color}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                {/* Summary row */}
+                <div className="border-t pt-4 mt-4">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">
+                      Total Expense Savings: {filteredExpenseSavingsTransactions.length} transactions
+                    </span>
+                    <span className="font-medium text-lg text-red-600">
+                      -{formatCurrency(
+                        filteredExpenseSavingsTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0)
                       )}
                     </span>
                   </div>
