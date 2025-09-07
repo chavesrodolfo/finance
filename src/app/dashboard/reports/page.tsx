@@ -96,6 +96,7 @@ export default function ReportsPage() {
   const [filteredExpenseSavingsTransactions, setFilteredExpenseSavingsTransactions] = useState<TransactionData[]>([]);
   const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set());
   const [isInitialized, setIsInitialized] = useState(false);
+  const [excludeCurrentMonth, setExcludeCurrentMonth] = useState(true);
   
   // Multi-select dropdown states
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
@@ -610,9 +611,48 @@ export default function ReportsPage() {
     : ((expensesByPeriod || []).length > 0 ? Math.max(...(expensesByPeriod || []).map(p => p?.amount || 0), 1) : 4000);
 
   // Calculate average for periods
-  const averageAmount = (expensesByPeriod || []).length > 0 
-    ? (expensesByPeriod || []).reduce((sum, item) => sum + (item?.amount || 0), 0) / (expensesByPeriod || []).length 
-    : 0;
+  const averageAmount = (() => {
+    if (!expensesByPeriod || expensesByPeriod.length === 0) return 0;
+    
+    let periodsToInclude = [...expensesByPeriod];
+    
+    // If excluding current month and in monthly view
+    if (excludeCurrentMonth && timeRange === 'monthly') {
+      const currentMonth = new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      periodsToInclude = expensesByPeriod.filter((period: MonthlyData | YearlyData) => {
+        if ('month' in period) {
+          return period.month !== currentMonth;
+        }
+        return true;
+      }) as MonthlyData[] | YearlyData[];
+    }
+    
+    if (periodsToInclude.length === 0) return 0;
+    
+    return periodsToInclude.reduce((sum, item) => sum + (item?.amount || 0), 0) / periodsToInclude.length;
+  })();
+
+  // Helper function to calculate average excluding current month if needed
+  const calculateAverage = (periodData: MonthlyData[] | YearlyData[]) => {
+    if (!periodData || periodData.length === 0) return 0;
+    
+    let periodsToInclude = [...periodData];
+    
+    // If excluding current month and in monthly view
+    if (excludeCurrentMonth && timeRange === 'monthly') {
+      const currentMonth = new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      periodsToInclude = periodData.filter((period: MonthlyData | YearlyData) => {
+        if ('month' in period) {
+          return period.month !== currentMonth;
+        }
+        return true;
+      }) as MonthlyData[] | YearlyData[];
+    }
+    
+    if (periodsToInclude.length === 0) return 0;
+    
+    return periodsToInclude.reduce((sum, item) => sum + (item?.amount || 0), 0) / periodsToInclude.length;
+  };
 
   const hasData = (expensesByCategory || []).length > 0 || (expensesByPeriod || []).length > 0;
 
@@ -1349,6 +1389,21 @@ export default function ReportsPage() {
                     </span>
                   </div>
                 </div>
+                
+                {/* Exclude Current Month Option */}
+                {timeRange === 'monthly' && (
+                  <div className="flex items-center justify-center pt-2 mt-2 border-t border-border">
+                    <label className="flex items-center space-x-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={excludeCurrentMonth}
+                        onChange={(e) => setExcludeCurrentMonth(e.target.checked)}
+                        className="rounded border-border text-primary focus:ring-primary"
+                      />
+                      <span className="text-muted-foreground">Exclude current month from average</span>
+                    </label>
+                  </div>
+                )}
               </CardContent>
             </Card>
             
@@ -2135,11 +2190,7 @@ export default function ReportsPage() {
                         Average per {timeRange === 'monthly' ? 'Month' : 'Year'}
                       </span>
                       <span className="text-sm sm:text-xl font-bold">
-                        {formatCurrency(
-                          expenseSavingsByPeriod && expenseSavingsByPeriod.length > 0 
-                            ? expenseSavingsByPeriod.reduce((sum, item) => sum + (item?.amount || 0), 0) / expenseSavingsByPeriod.length 
-                            : 0
-                        )}
+                        {formatCurrency(calculateAverage(expenseSavingsByPeriod || []))}
                       </span>
                     </div>
                   )}
@@ -2169,6 +2220,21 @@ export default function ReportsPage() {
                     </span>
                   </div>
                 </div>
+                
+                {/* Exclude Current Month Option */}
+                {timeRange === 'monthly' && (
+                  <div className="flex items-center justify-center pt-2 mt-2 border-t border-border">
+                    <label className="flex items-center space-x-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={excludeCurrentMonth}
+                        onChange={(e) => setExcludeCurrentMonth(e.target.checked)}
+                        className="rounded border-border text-primary focus:ring-primary"
+                      />
+                      <span className="text-muted-foreground">Exclude current month from average</span>
+                    </label>
+                  </div>
+                )}
               </CardContent>
             </Card>
             
@@ -2711,7 +2777,7 @@ export default function ReportsPage() {
                             Average per {timeRange === 'monthly' ? 'Month' : 'Year'}
                           </span>
                           <span className="text-sm sm:text-xl font-bold text-green-600">
-                            {formatCurrency((incomeByPeriod || []).length > 0 ? (incomeByPeriod || []).reduce((sum: number, d: MonthlyData | YearlyData) => sum + (d?.amount || 0), 0) / (incomeByPeriod || []).length : 0)}
+                            {formatCurrency(calculateAverage(incomeByPeriod || []))}
                           </span>
                         </div>
                       )}
@@ -2741,6 +2807,21 @@ export default function ReportsPage() {
                         </span>
                       </div>
                     </div>
+                    
+                    {/* Exclude Current Month Option */}
+                    {timeRange === 'monthly' && (
+                      <div className="flex items-center justify-center pt-2 mt-2 border-t border-border">
+                        <label className="flex items-center space-x-2 text-sm cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={excludeCurrentMonth}
+                            onChange={(e) => setExcludeCurrentMonth(e.target.checked)}
+                            className="rounded border-border text-primary focus:ring-primary"
+                          />
+                          <span className="text-muted-foreground">Exclude current month from average</span>
+                        </label>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
