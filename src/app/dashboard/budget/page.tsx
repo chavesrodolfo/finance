@@ -99,7 +99,6 @@ export default function BudgetPage() {
           <Card className="md:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between py-4">
               <Skeleton className="h-6 w-36" />
-              <Skeleton className="h-4 w-16" />
             </CardHeader>
             <CardContent>
               <Table>
@@ -108,7 +107,6 @@ export default function BudgetPage() {
                     <TableHead className="w-[300px]"><Skeleton className="h-4 w-12" /></TableHead>
                     <TableHead><Skeleton className="h-4 w-16" /></TableHead>
                     <TableHead className="text-right"><Skeleton className="h-4 w-16" /></TableHead>
-                    <TableHead className="w-[100px] text-right"><Skeleton className="h-4 w-12" /></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -117,14 +115,12 @@ export default function BudgetPage() {
                       <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                       <TableCell className="text-right"><Skeleton className="h-4 w-16" /></TableCell>
-                      <TableCell className="text-right"><Skeleton className="h-8 w-8" /></TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="bg-muted/50">
                     <TableCell><Skeleton className="h-4 w-12" /></TableCell>
                     <TableCell></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell></TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -223,9 +219,6 @@ export default function BudgetPage() {
         <Card className="md:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between py-4">
             <CardTitle>Monthly Budget</CardTitle>
-            <div className="text-sm text-muted-foreground">
-              {items.length} items
-            </div>
           </CardHeader>
           <CardContent>
             {items.length === 0 ? (
@@ -251,34 +244,24 @@ export default function BudgetPage() {
                     <TableHead className="w-[300px]">Name</TableHead>
                     <TableHead>Period</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
-                    <TableHead className="w-[100px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.name}</TableCell>
-                      <TableCell className="capitalize">{item.period.toLowerCase()}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8"
-                            onClick={() => handleEditItem(item)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                    <TableRow 
+                      key={item.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors h-14"
+                      onClick={() => handleEditItem(item)}
+                    >
+                      <TableCell className="font-medium py-4">{item.name}</TableCell>
+                      <TableCell className="capitalize py-4">{item.period.toLowerCase()}</TableCell>
+                      <TableCell className="text-right py-4">{formatCurrency(item.amount)}</TableCell>
                     </TableRow>
                   ))}
-                  <TableRow className="bg-muted/50">
-                    <TableCell className="font-bold">Total</TableCell>
-                    <TableCell></TableCell>
-                    <TableCell className="text-right font-bold">{formatCurrency(totalBudget)}</TableCell>
-                    <TableCell></TableCell>
+                  <TableRow className="bg-muted/50 h-14">
+                    <TableCell className="font-bold py-4">Total</TableCell>
+                    <TableCell className="py-4"></TableCell>
+                    <TableCell className="text-right font-bold py-4">{formatCurrency(totalBudget)}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
