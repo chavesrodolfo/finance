@@ -522,7 +522,7 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  }, [apiFetch, timeRange, selectedYear, selectedCategories, selectedDescriptions, startDate, endDate]);
+  }, [apiFetch, timeRange, selectedYear, selectedCategories, selectedDescriptions, startDate, endDate, isInitialized, pendingCategories.length, pendingDescriptions.length]);
 
   useEffect(() => {
     if (currentAccount) {
@@ -2027,7 +2027,7 @@ export default function ReportsPage() {
                         );
                       }
 
-                      return data.map((item: any, index: number) => {
+                      return data.map((item: { amount?: number; category?: string; month?: string; year?: string }, index: number) => {
                         const barWidth = Math.max(((item?.amount || 0) / maxAmount) * 100, 1);
                         const label = timeRange === 'custom' ? (item?.category || 'Unknown') : 
                                      timeRange === 'monthly' ? (item?.month || 'Unknown') : 
