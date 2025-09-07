@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AccountProvider } from "@/hooks/useAccountContext";
 import { AccountSwitcher } from "@/components/ui/account-switcher";
+import { InvitationNotification } from "@/components/ui/invitation-notification";
 
 export default function DashboardLayout({
   children,
@@ -196,6 +197,9 @@ export default function DashboardLayout({
             {children}
           </div>
         </main>
+
+        {/* Invitation Notifications */}
+        <InvitationNotification />
 
         {/* Mobile Navigation */}
         <div className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background z-50">

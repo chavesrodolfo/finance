@@ -415,6 +415,60 @@ export async function inviteSubaccount(inviterEmail: string, inviteeEmail: strin
   })
 }
 
+export async function resendInvitation(inviterEmail: string, inviteeEmail: string) {
+  // Check if invitation already exists
+  const existingInvitation = await prisma.subaccountInvitation.findUnique({
+    where: {
+      inviterEmail_inviteeEmail: {
+        inviterEmail,
+        inviteeEmail
+      }
+    }
+  })
+
+  if (existingInvitation) {
+    // If invitation exists and is DECLINED, update it to PENDING
+    if (existingInvitation.status === 'DECLINED') {
+      return await prisma.subaccountInvitation.update({
+        where: { id: existingInvitation.id },
+        data: {
+          status: 'PENDING',
+          updatedAt: new Date()
+        },
+        include: {
+          inviter: true,
+          invitee: true
+        }
+      })
+    } else {
+      // If invitation exists but is not DECLINED, throw error
+      throw new Error('Invitation already exists')
+    }
+  }
+
+  // If no existing invitation, create new one (same as inviteSubaccount)
+  const inviter = await prisma.user.findUnique({
+    where: { email: inviterEmail }
+  })
+  const invitee = await prisma.user.findUnique({
+    where: { email: inviteeEmail }
+  })
+
+  return await prisma.subaccountInvitation.create({
+    data: {
+      inviterEmail,
+      inviteeEmail,
+      inviterId: inviter?.id,
+      inviteeId: invitee?.id,
+      status: 'PENDING'
+    },
+    include: {
+      inviter: true,
+      invitee: true
+    }
+  })
+}
+
 export async function getUserInvitations(userEmail: string) {
   return await prisma.subaccountInvitation.findMany({
     where: {
@@ -434,11 +488,23 @@ export async function getUserInvitations(userEmail: string) {
 }
 
 export async function respondToInvitation(invitationId: string, userId: string, response: 'ACCEPTED' | 'DECLINED') {
-  // Verify the invitation belongs to this user
+  // Get the current user's email
+  const currentUser = await prisma.user.findUnique({
+    where: { id: userId }
+  })
+  
+  if (!currentUser) {
+    throw new Error('User not found')
+  }
+
+  // Verify the invitation belongs to this user (by email or userId)
   const invitation = await prisma.subaccountInvitation.findFirst({
     where: {
       id: invitationId,
-      inviteeId: userId,
+      OR: [
+        { inviteeId: userId },
+        { inviteeEmail: currentUser.email }
+      ],
       status: 'PENDING'
     },
     include: {
@@ -451,20 +517,33 @@ export async function respondToInvitation(invitationId: string, userId: string, 
     throw new Error('Invitation not found or not pending')
   }
 
-  // Update invitation status
+  // Update invitation status and set inviteeId if it wasn't set
   const updatedInvitation = await prisma.subaccountInvitation.update({
     where: { id: invitationId },
-    data: { status: response }
+    data: { 
+      status: response,
+      inviteeId: userId // Ensure inviteeId is set
+    }
   })
 
   // If accepted, create subaccount access
   if (response === 'ACCEPTED' && invitation.inviter) {
-    await prisma.subaccountAccess.create({
-      data: {
+    // Check if access already exists to avoid duplicates
+    const existingAccess = await prisma.subaccountAccess.findFirst({
+      where: {
         ownerId: invitation.inviter.id,
         subaccountId: userId
       }
     })
+    
+    if (!existingAccess) {
+      await prisma.subaccountAccess.create({
+        data: {
+          ownerId: invitation.inviter.id,
+          subaccountId: userId
+        }
+      })
+    }
   }
 
   return updatedInvitation
@@ -554,6 +633,180 @@ export async function isSubaccount(userId: string, targetUserId: string) {
   })
 
   return !!access
+}
+
+export async function leaveAccount(subaccountId: string, ownerId: string) {
+  // Find the access record - the subaccount wants to leave the owner's account
+  const access = await prisma.subaccountAccess.findFirst({
+    where: {
+      ownerId,
+      subaccountId
+    }
+  })
+  
+  if (!access) {
+    throw new Error('Access not found')
+  }
+  
+  // Delete the access record
+  await prisma.subaccountAccess.delete({
+    where: { id: access.id }
+  })
+}
+
+export async function revokeInvitation(invitationId: string, userId: string) {
+  // Get the current user's email to verify ownership
+  const currentUser = await prisma.user.findUnique({
+    where: { id: userId }
+  })
+  
+  if (!currentUser) {
+    throw new Error('User not found')
+  }
+
+  // Find the invitation and verify it belongs to this user as the inviter
+  const invitation = await prisma.subaccountInvitation.findFirst({
+    where: {
+      id: invitationId,
+      OR: [
+        { inviterId: userId },
+        { inviterEmail: currentUser.email }
+      ],
+      status: 'PENDING' // Can only revoke pending invitations
+    }
+  })
+
+  if (!invitation) {
+    throw new Error('Invitation not found, already processed, or you are not authorized to revoke it')
+  }
+
+  // Delete the invitation
+  await prisma.subaccountInvitation.delete({
+    where: { id: invitationId }
+  })
+
+  return invitation
+}
+
+export async function removeAcceptedInvitation(invitationId: string, userId: string) {
+  // Get the current user's email to verify ownership
+  const currentUser = await prisma.user.findUnique({
+    where: { id: userId }
+  })
+  
+  if (!currentUser) {
+    throw new Error('User not found')
+  }
+
+  // Find the invitation and verify it belongs to this user as the inviter
+  const invitation = await prisma.subaccountInvitation.findFirst({
+    where: {
+      id: invitationId,
+      OR: [
+        { inviterId: userId },
+        { inviterEmail: currentUser.email }
+      ],
+      status: 'ACCEPTED' // Only remove accepted invitations
+    },
+    include: {
+      invitee: true
+    }
+  })
+
+  if (!invitation) {
+    throw new Error('Accepted invitation not found or you are not authorized to remove it')
+  }
+
+  // Remove the SubaccountAccess record if it exists
+  if (invitation.invitee) {
+    const existingAccess = await prisma.subaccountAccess.findFirst({
+      where: {
+        ownerId: userId,
+        subaccountId: invitation.invitee.id
+      }
+    })
+
+    if (existingAccess) {
+      await prisma.subaccountAccess.delete({
+        where: { id: existingAccess.id }
+      })
+    }
+  }
+
+  // Delete the invitation record
+  await prisma.subaccountInvitation.delete({
+    where: { id: invitationId }
+  })
+
+  return {
+    invitation,
+    message: 'Invitation removed and access revoked successfully'
+  }
+}
+
+export async function requestAccessAgain(requesterUserId: string, ownerEmail: string) {
+  // Get the current user (requester)
+  const requester = await prisma.user.findUnique({
+    where: { id: requesterUserId },
+    select: { email: true, name: true }
+  })
+
+  if (!requester) {
+    throw new Error('Requester not found')
+  }
+
+  // Find the owner by email
+  const owner = await prisma.user.findUnique({
+    where: { email: ownerEmail },
+    select: { id: true, email: true }
+  })
+
+  if (!owner) {
+    throw new Error('Account owner not found')
+  }
+
+  // Check if there's already any invitation between these users
+  const existingInvitation = await prisma.subaccountInvitation.findFirst({
+    where: {
+      inviterEmail: ownerEmail,
+      inviteeEmail: requester.email
+    }
+  })
+
+  if (existingInvitation) {
+    if (existingInvitation.status === 'PENDING') {
+      throw new Error('Access request already pending')
+    }
+    
+    // Update existing invitation to PENDING status (for ACCEPTED, DECLINED, or EXPIRED)
+    const invitation = await prisma.subaccountInvitation.update({
+      where: { id: existingInvitation.id },
+      data: {
+        status: 'PENDING',
+        updatedAt: new Date()
+      }
+    })
+    
+    return {
+      invitation,
+      message: 'Access request sent successfully'
+    }
+  }
+
+  // Create a new invitation request if none exists
+  const invitation = await prisma.subaccountInvitation.create({
+    data: {
+      inviterEmail: ownerEmail,
+      inviterId: owner.id,
+      inviteeEmail: requester.email,
+      status: 'PENDING'
+    }
+  })
+
+  return {
+    invitation,
+    message: 'Access request sent successfully'
+  }
 }
 
 

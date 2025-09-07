@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlusCircle, Trash2, Mail, Clock, Check, X, UserPlus, Users } from "lucide-react";
+import { PlusCircle, Trash2, Mail, Clock, Check, X, UserPlus, Users, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
 import { useUser } from "@stackframe/stack";
@@ -41,6 +41,17 @@ export default function SubaccountsPage() {
   const [isResponding, setIsResponding] = useState(false);
   const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
   const [selectedSubaccountId, setSelectedSubaccountId] = useState<string | null>(null);
+  const [leaveAccountDialogOpen, setLeaveAccountDialogOpen] = useState(false);
+  const [selectedOwnerAccountId, setSelectedOwnerAccountId] = useState<string | null>(null);
+  const [revokeInvitationDialogOpen, setRevokeInvitationDialogOpen] = useState(false);
+  const [selectedInvitationId, setSelectedInvitationId] = useState<string | null>(null);
+  const [selectedInvitationEmail, setSelectedInvitationEmail] = useState<string | null>(null);
+  const [isRevokingInvitation, setIsRevokingInvitation] = useState(false);
+  const [removeAcceptedDialogOpen, setRemoveAcceptedDialogOpen] = useState(false);
+  const [selectedAcceptedInvitationId, setSelectedAcceptedInvitationId] = useState<string | null>(null);
+  const [selectedAcceptedInvitationEmail, setSelectedAcceptedInvitationEmail] = useState<string | null>(null);
+  const [isRemovingAccepted, setIsRemovingAccepted] = useState(false);
+  const [isResendingInvitation, setIsResendingInvitation] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -77,8 +88,25 @@ export default function SubaccountsPage() {
     }
   };
 
+  const checkExistingInvitation = (email: string) => {
+    return sentInvitations.find(inv => 
+      inv.inviteeEmail?.toLowerCase() === email.toLowerCase()
+    );
+  };
+
   const handleInviteSubaccount = async () => {
     if (!newInviteeEmail.trim() || !user?.primaryEmail) return;
+
+    // Check for existing invitation before making API call
+    const existingInvitation = checkExistingInvitation(newInviteeEmail.trim());
+    if (existingInvitation) {
+      toast({
+        title: "Duplicate Invitation",
+        description: `An invitation to ${newInviteeEmail.trim()} already exists with status: ${existingInvitation.status}. Please check the 'Sent Invitations' tab.`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       setIsInviting(true);
@@ -106,9 +134,25 @@ export default function SubaccountsPage() {
       }
     } catch (error: unknown) {
       console.error('Error sending invitation:', error);
+      
+      let errorMessage = "Failed to send invitation";
+      let errorTitle = "Error";
+      
+      if (error instanceof Error) {
+        if (error.message === "Invitation already exists for this email") {
+          errorTitle = "Duplicate Invitation";
+          errorMessage = "An invitation has already been sent to this email address. Please check the 'Sent Invitations' tab to see its status.";
+        } else if (error.message === "Cannot invite yourself") {
+          errorTitle = "Invalid Invitation";
+          errorMessage = "You cannot invite yourself as a subaccount.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to send invitation",
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -188,6 +232,195 @@ export default function SubaccountsPage() {
     setRevokeDialogOpen(true);
   };
 
+  const handleLeaveAccount = async (ownerId: string) => {
+    try {
+      const response = await fetch('/api/subaccounts/leave', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ownerId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Successfully left the account",
+        });
+        setLeaveAccountDialogOpen(false);
+        setSelectedOwnerAccountId(null);
+        fetchData(); // Refresh data
+      } else {
+        throw new Error(data.error || 'Failed to leave account');
+      }
+    } catch (error: unknown) {
+      console.error('Error leaving account:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to leave account",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openLeaveAccountDialog = (ownerId: string) => {
+    setSelectedOwnerAccountId(ownerId);
+    setLeaveAccountDialogOpen(true);
+  };
+
+  const handleRevokeInvitation = async (invitationId: string) => {
+    try {
+      setIsRevokingInvitation(true);
+      const response = await fetch(`/api/subaccounts/invitations/${invitationId}/revoke`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Invitation cancelled successfully",
+        });
+        setRevokeInvitationDialogOpen(false);
+        setSelectedInvitationId(null);
+        setSelectedInvitationEmail(null);
+        fetchData(); // Refresh data
+      } else {
+        throw new Error(data.error || 'Failed to revoke invitation');
+      }
+    } catch (error: unknown) {
+      console.error('Error revoking invitation:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to revoke invitation",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRevokingInvitation(false);
+    }
+  };
+
+  const openRevokeInvitationDialog = (invitationId: string, inviteeEmail: string) => {
+    setSelectedInvitationId(invitationId);
+    setSelectedInvitationEmail(inviteeEmail);
+    setRevokeInvitationDialogOpen(true);
+  };
+
+  const handleRemoveAcceptedInvitation = async (invitationId: string) => {
+    try {
+      setIsRemovingAccepted(true);
+      const response = await fetch(`/api/subaccounts/invitations/${invitationId}/remove-accepted`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Accepted invitation removed and access revoked successfully",
+        });
+        setRemoveAcceptedDialogOpen(false);
+        setSelectedAcceptedInvitationId(null);
+        setSelectedAcceptedInvitationEmail(null);
+        fetchData(); // Refresh data
+      } else {
+        throw new Error(data.error || 'Failed to remove accepted invitation');
+      }
+    } catch (error: unknown) {
+      console.error('Error removing accepted invitation:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to remove accepted invitation",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRemovingAccepted(false);
+    }
+  };
+
+  const openRemoveAcceptedDialog = (invitationId: string, inviteeEmail: string) => {
+    setSelectedAcceptedInvitationId(invitationId);
+    setSelectedAcceptedInvitationEmail(inviteeEmail);
+    setRemoveAcceptedDialogOpen(true);
+  };
+
+  const handleRequestAccessAgain = async (inviterEmail: string) => {
+    try {
+      setIsResendingInvitation(true);
+      
+      const response = await fetch('/api/subaccounts/request-access', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ownerEmail: inviterEmail,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Access request sent successfully",
+        });
+        fetchData(); // Refresh data to show the new pending invitation
+      } else {
+        throw new Error(data.error || 'Failed to send access request');
+      }
+    } catch (error: unknown) {
+      console.error('Error requesting access again:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to send access request",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResendingInvitation(false);
+    }
+  };
+
+  const handleResendInvitation = async (email: string) => {
+    try {
+      setIsResendingInvitation(true);
+      const response = await fetch('/api/subaccounts/resend', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Invitation resent successfully",
+        });
+        fetchData(); // Refresh data
+      } else {
+        throw new Error(data.error || 'Failed to resend invitation');
+      }
+    } catch (error: unknown) {
+      console.error('Error resending invitation:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to resend invitation",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResendingInvitation(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'PENDING': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
@@ -264,20 +497,30 @@ export default function SubaccountsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter email address..."
-                  value={newInviteeEmail}
-                  onChange={(e) => setNewInviteeEmail(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleInviteSubaccount()}
-                />
-                <Button 
-                  onClick={handleInviteSubaccount}
-                  disabled={!newInviteeEmail.trim() || isInviting}
-                >
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                  {isInviting ? 'Inviting...' : 'Invite'}
-                </Button>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <Input
+                      placeholder="Enter email address..."
+                      value={newInviteeEmail}
+                      onChange={(e) => setNewInviteeEmail(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleInviteSubaccount()}
+                      className={checkExistingInvitation(newInviteeEmail.trim()) ? "border-yellow-300 focus:border-yellow-500" : ""}
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleInviteSubaccount}
+                    disabled={!newInviteeEmail.trim() || isInviting || !!checkExistingInvitation(newInviteeEmail.trim())}
+                  >
+                    <PlusCircle className="h-4 w-4 mr-2" />
+                    {isInviting ? 'Inviting...' : 'Invite'}
+                  </Button>
+                </div>
+                {newInviteeEmail.trim() && checkExistingInvitation(newInviteeEmail.trim()) && (
+                  <div className="text-xs text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
+                    ⚠ Email already invited ({checkExistingInvitation(newInviteeEmail.trim())?.status})
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -346,10 +589,45 @@ export default function SubaccountsPage() {
                           Sent on {new Date(invitation.createdAt).toLocaleDateString()}
                         </p>
                       </div>
-                      <Badge className={`flex items-center gap-1 ${getStatusColor(invitation.status)}`}>
-                        {getStatusIcon(invitation.status)}
-                        {invitation.status}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {invitation.status === 'PENDING' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openRevokeInvitationDialog(invitation.id, invitation.inviteeEmail || '')}
+                            disabled={isRevokingInvitation}
+                          >
+                            <X className="h-4 w-4 mr-1" />
+                            Cancel
+                          </Button>
+                        )}
+                        {invitation.status === 'ACCEPTED' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openRemoveAcceptedDialog(invitation.id, invitation.inviteeEmail || '')}
+                            disabled={isRemovingAccepted}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Revoke
+                          </Button>
+                        )}
+                        {invitation.status === 'DECLINED' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleResendInvitation(invitation.inviteeEmail || '')}
+                            disabled={isResendingInvitation}
+                          >
+                            <RefreshCw className="h-4 w-4 mr-1" />
+                            Resend
+                          </Button>
+                        )}
+                        <Badge className={`flex items-center gap-1 ${getStatusColor(invitation.status)}`}>
+                          {getStatusIcon(invitation.status)}
+                          {invitation.status}
+                        </Badge>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -402,10 +680,34 @@ export default function SubaccountsPage() {
                             </Button>
                           </div>
                         ) : (
-                          <Badge className={`flex items-center gap-1 ${getStatusColor(invitation.status)}`}>
-                            {getStatusIcon(invitation.status)}
-                            {invitation.status}
-                          </Badge>
+                          <>
+                            {invitation.status === 'ACCEPTED' && (() => {
+                              // Check if user still has access to this account
+                              const hasActiveAccess = accessibleAccounts.some(
+                                account => account.email === invitation.inviterEmail && !account.isOwn
+                              )
+                              
+                              if (!hasActiveAccess) {
+                                // User no longer has access - show "Request Access Again" button
+                                return (
+                                  <Button
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleRequestAccessAgain(invitation.inviterEmail || '')}
+                                    disabled={isResendingInvitation}
+                                  >
+                                    <RefreshCw className="h-4 w-4 mr-1" />
+                                    Request Access Again
+                                  </Button>
+                                )
+                              }
+                              return null
+                            })()}
+                            <Badge className={`flex items-center gap-1 ${getStatusColor(invitation.status)}`}>
+                              {getStatusIcon(invitation.status)}
+                              {invitation.status}
+                            </Badge>
+                          </>
                         )}
                       </div>
                     </div>
@@ -444,6 +746,16 @@ export default function SubaccountsPage() {
                         <Badge variant={account.isOwn ? "default" : "secondary"}>
                           {account.isOwn ? "Own Account" : "Subaccount"}
                         </Badge>
+                        {!account.isOwn && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => openLeaveAccountDialog(account.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Leave
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -461,6 +773,36 @@ export default function SubaccountsPage() {
         title="Revoke Access"
         description={selectedSubaccountId ? `Are you sure you want to revoke this subaccount&apos;s access to your account?` : ''}
         onConfirm={() => selectedSubaccountId && handleRevokeAccess(selectedSubaccountId)}
+        isDestructive
+      />
+
+      {/* Leave Account Confirmation Dialog */}
+      <ConfirmationDialog
+        open={leaveAccountDialogOpen}
+        onOpenChange={setLeaveAccountDialogOpen}
+        title="Leave Account"
+        description={selectedOwnerAccountId ? `Are you sure you want to leave this account? You will lose access to all financial data and will need to be re-invited to regain access.` : ''}
+        onConfirm={() => selectedOwnerAccountId && handleLeaveAccount(selectedOwnerAccountId)}
+        isDestructive
+      />
+
+      {/* Cancel Invitation Confirmation Dialog */}
+      <ConfirmationDialog
+        open={revokeInvitationDialogOpen}
+        onOpenChange={setRevokeInvitationDialogOpen}
+        title="Cancel Invitation"
+        description={selectedInvitationEmail ? `Are you sure you want to cancel the invitation sent to ${selectedInvitationEmail}? This action cannot be undone and they will not be able to accept the invitation.` : ''}
+        onConfirm={() => selectedInvitationId && handleRevokeInvitation(selectedInvitationId)}
+        isDestructive
+      />
+
+      {/* Revoke Accepted Invitation Confirmation Dialog */}
+      <ConfirmationDialog
+        open={removeAcceptedDialogOpen}
+        onOpenChange={setRemoveAcceptedDialogOpen}
+        title="Revoke Access"
+        description={selectedAcceptedInvitationEmail ? `Are you sure you want to revoke access for ${selectedAcceptedInvitationEmail}? This will revoke their access to your account and remove the invitation record. This action cannot be undone.` : ''}
+        onConfirm={() => selectedAcceptedInvitationId && handleRemoveAcceptedInvitation(selectedAcceptedInvitationId)}
         isDestructive
       />
     </div>

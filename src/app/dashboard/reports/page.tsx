@@ -1462,7 +1462,7 @@ export default function ReportsPage() {
                                 {transaction.type.replace('_', ' ')}
                               </span>
                             </TableCell>
-                            <TableCell className="text-right font-medium">
+                            <TableCell className="text-right font-mono">
                               <span className={
                                 transaction.type === "EXPENSE" || transaction.type === "EXPENSE_SAVINGS"
                                   ? "text-red-600 dark:text-red-400"
