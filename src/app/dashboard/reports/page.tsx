@@ -654,6 +654,23 @@ export default function ReportsPage() {
     return periodsToInclude.reduce((sum, item) => sum + (item?.amount || 0), 0) / periodsToInclude.length;
   };
 
+  // Helper function to find the period with the highest amount
+  const getTopPeriod = (periodData: MonthlyData[] | YearlyData[]) => {
+    if (!periodData || periodData.length === 0) return "N/A";
+    
+    const topPeriod = periodData.reduce((max, current) => 
+      (current?.amount || 0) > (max?.amount || 0) ? current : max
+    );
+    
+    if ('month' in topPeriod) {
+      return topPeriod.month;
+    } else if ('year' in topPeriod) {
+      return topPeriod.year;
+    }
+    
+    return "N/A";
+  };
+
   const hasData = (expensesByCategory || []).length > 0 || (expensesByPeriod || []).length > 0;
 
   const togglePeriodExpansion = (period: string) => {
@@ -1372,9 +1389,7 @@ export default function ReportsPage() {
                     <span className="text-sm sm:text-lg font-bold text-center">
                       {timeRange === 'custom' 
                         ? (expensesByCategory || [])[0]?.category || "N/A"
-                        : timeRange === 'monthly' 
-                          ? ((expensesByPeriod || [])[0] as MonthlyData)?.month || "N/A"
-                          : ((expensesByPeriod || [])[0] as YearlyData)?.year || "N/A"
+                        : getTopPeriod(expensesByPeriod || [])
                       }
                     </span>
                   </div>
@@ -2203,9 +2218,7 @@ export default function ReportsPage() {
                     <span className="text-sm sm:text-lg font-bold text-center">
                       {timeRange === 'custom' 
                         ? (expenseSavingsByCategory || [])[0]?.category || "N/A"
-                        : timeRange === 'monthly' 
-                          ? ((expenseSavingsByPeriod || [])[0] as MonthlyData)?.month || "N/A"
-                          : ((expenseSavingsByPeriod || [])[0] as YearlyData)?.year || "N/A"
+                        : getTopPeriod(expenseSavingsByPeriod || [])
                       }
                     </span>
                   </div>
@@ -2790,9 +2803,7 @@ export default function ReportsPage() {
                         <span className="text-sm sm:text-lg font-bold text-center text-green-600">
                           {timeRange === 'custom' 
                             ? (incomeByCategory || [])[0]?.category || "N/A"
-                            : timeRange === 'monthly' 
-                              ? ((incomeByPeriod || [])[0] as MonthlyData)?.month || "N/A"
-                              : ((incomeByPeriod || [])[0] as YearlyData)?.year || "N/A"
+                            : getTopPeriod(incomeByPeriod || [])
                           }
                         </span>
                       </div>
