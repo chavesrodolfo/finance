@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { stackClientApp } from "../stack.client";
 import { useRouter } from "next/navigation";
@@ -87,19 +87,7 @@ export default function Dashboard() {
     fetchUser();
   }, [router]);
 
-  // Only fetch data when account context is ready and available
-  useEffect(() => {
-    if (currentAccount) {
-      setLoading(true);
-      Promise.all([
-        fetchTransactions(),
-        fetchBudgetItems(),
-        fetchInvestmentAccounts()
-      ]).finally(() => setLoading(false));
-    }
-  }, [currentAccount]);
-
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     try {
       const response = await apiFetch('/api/transactions');
       if (response.ok) {
@@ -109,9 +97,9 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Error fetching transactions:', error);
     }
-  };
+  }, [apiFetch]);
 
-  const fetchBudgetItems = async () => {
+  const fetchBudgetItems = useCallback(async () => {
     try {
       const response = await apiFetch('/api/budget');
       if (response.ok) {
@@ -123,9 +111,9 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiFetch]);
 
-  const fetchInvestmentAccounts = async () => {
+  const fetchInvestmentAccounts = useCallback(async () => {
     try {
       const response = await apiFetch('/api/investment-accounts');
       if (response.ok) {
@@ -135,7 +123,19 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Error fetching investment accounts:', error);
     }
-  };
+  }, [apiFetch]);
+
+  // Only fetch data when account context is ready and available
+  useEffect(() => {
+    if (currentAccount) {
+      setLoading(true);
+      Promise.all([
+        fetchTransactions(),
+        fetchBudgetItems(),
+        fetchInvestmentAccounts()
+      ]).finally(() => setLoading(false));
+    }
+  }, [currentAccount, fetchBudgetItems, fetchInvestmentAccounts, fetchTransactions]);
 
   // Calculate totals for investments
   const totalInvestments = investmentAccounts.reduce((sum, account) => {

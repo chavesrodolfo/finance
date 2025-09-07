@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,7 +66,7 @@ export default function NewTransactionPage() {
   }, []);
 
   // Fetch categories function
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       setIsLoadingCategories(true);
       const response = await apiFetch('/api/categories');
@@ -86,19 +86,19 @@ export default function NewTransactionPage() {
     } finally {
       setIsLoadingCategories(false);
     }
-  };
+  }, [apiFetch, toast]);
 
   // Fetch categories when component mounts
   useEffect(() => {
     fetchCategories();
-  }, []);
+  }, [fetchCategories]);
 
   // Refetch categories when account context changes
   useEffect(() => {
     if (currentAccount) {
       fetchCategories();
     }
-  }, [currentAccount]);
+  }, [currentAccount, fetchCategories]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

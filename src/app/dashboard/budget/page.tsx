@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Edit } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -38,7 +38,7 @@ export default function BudgetPage() {
   const { apiFetch } = useAccountAwareApi();
   const { currentAccount } = useAccountContext();
 
-  const fetchBudgetItems = async () => {
+  const fetchBudgetItems = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -57,18 +57,18 @@ export default function BudgetPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiFetch]);
 
   useEffect(() => {
     fetchBudgetItems();
-  }, []);
+  }, [fetchBudgetItems]);
 
   // Refetch data when account context changes
   useEffect(() => {
     if (currentAccount) {
       fetchBudgetItems();
     }
-  }, [currentAccount]);
+  }, [currentAccount, fetchBudgetItems]);
   
   // Calculate total
   const totalBudget = items.reduce((sum, item) => sum + item.amount, 0);

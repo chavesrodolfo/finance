@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react'
 import { useUser } from "@stackframe/stack"
 
 type Account = {
@@ -57,13 +57,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     return null
   }
 
-  useEffect(() => {
-    if (user?.primaryEmail) {
-      fetchAccessibleAccounts()
-    }
-  }, [user?.primaryEmail])
-
-  const fetchAccessibleAccounts = async () => {
+  const fetchAccessibleAccounts = useCallback(async () => {
     try {
       const response = await fetch('/api/subaccounts/accessible')
       if (response.ok) {
@@ -103,7 +97,13 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    if (user?.primaryEmail) {
+      fetchAccessibleAccounts()
+    }
+  }, [user?.primaryEmail, fetchAccessibleAccounts])
 
   const switchAccount = (accountId: string) => {
     const account = availableAccounts.find(acc => acc.id === accountId)

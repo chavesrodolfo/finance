@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, CircleDollarSign, Eye, EyeOff } from "lucide-react";
@@ -48,7 +48,7 @@ export default function InvestmentsPage() {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  const fetchAccounts = async () => {
+  const fetchAccounts = useCallback(async () => {
     try {
       setLoading(true);
       const response = await apiFetch('/api/investment-accounts');
@@ -70,18 +70,18 @@ export default function InvestmentsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiFetch]);
 
   useEffect(() => {
     fetchAccounts();
-  }, []);
+  }, [fetchAccounts]);
 
   // Refetch data when account context changes
   useEffect(() => {
     if (currentAccount) {
       fetchAccounts();
     }
-  }, [currentAccount]);
+  }, [currentAccount, fetchAccounts]);
 
   // Helper function to convert to CAD using live rates when available
   const convertToCadWithLiveRates = (amount: number, currency: string): number => {

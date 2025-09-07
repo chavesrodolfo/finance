@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -96,7 +96,7 @@ export default function ReportsPage() {
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [descriptionDropdownOpen, setDescriptionDropdownOpen] = useState(false);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -428,13 +428,13 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiFetch, timeRange, selectedYear, selectedCategories, selectedDescriptions, startDate, endDate, pendingCategories.length, pendingDescriptions.length]);
 
   useEffect(() => {
     if (currentAccount) {
       fetchTransactions();
     }
-  }, [timeRange, selectedYear, selectedCategories, selectedDescriptions, startDate, endDate, currentAccount]);
+  }, [timeRange, selectedYear, selectedCategories, selectedDescriptions, startDate, endDate, currentAccount, fetchTransactions]);
 
   // Reset selections when account changes to trigger "select all" behavior
   useEffect(() => {

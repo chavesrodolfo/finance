@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -72,7 +72,7 @@ export default function TransactionsPage() {
     }
   };
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -91,9 +91,9 @@ export default function TransactionsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiFetch]);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const response = await apiFetch('/api/categories');
       if (response.ok) {
@@ -103,7 +103,7 @@ export default function TransactionsPage() {
     } catch (error) {
       console.error('Error fetching categories:', error);
     }
-  };
+  }, [apiFetch]);
 
   // Only fetch data when account context is ready and available
   useEffect(() => {
@@ -111,7 +111,7 @@ export default function TransactionsPage() {
       fetchTransactions();
       fetchCategories();
     }
-  }, [currentAccount]);
+  }, [currentAccount, fetchTransactions, fetchCategories]);
 
   const handleEditTransaction = (transaction: Transaction) => {
     setEditingTransaction(transaction);
