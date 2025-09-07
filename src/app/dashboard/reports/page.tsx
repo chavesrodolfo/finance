@@ -1342,7 +1342,7 @@ export default function ReportsPage() {
                             </div>
                             
                             <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                              <span className="text-xs font-medium text-white drop-shadow-sm">
+                              <span className="text-xs font-medium text-gray-700 dark:text-white drop-shadow-sm">
                                 {formatCurrency(item?.amount || 0)}
                               </span>
                             </div>
@@ -2160,7 +2160,7 @@ export default function ReportsPage() {
                               </div>
                               
                               <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                                <span className="text-xs font-medium text-white drop-shadow-sm">
+                                <span className="text-xs font-medium text-gray-700 dark:text-white drop-shadow-sm">
                                   {formatCurrency(item?.amount || 0)}
                                 </span>
                               </div>
@@ -2753,7 +2753,7 @@ export default function ReportsPage() {
                                   </div>
                                   
                                   <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                                    <span className="text-xs font-medium text-white drop-shadow-sm">
+                                    <span className="text-xs font-medium text-gray-700 dark:text-white drop-shadow-sm">
                                       {formatCurrency(item?.amount || 0)}
                                     </span>
                                   </div>
