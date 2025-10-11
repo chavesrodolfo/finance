@@ -48,7 +48,7 @@ const transactionTypeLabels = {
 export default function TransactionsPage() {
   const [importPhase, setImportPhase] = useState<'uploading' | 'processing' | null>(null);
   const [progressDetails, setProgressDetails] = useState<{ processed: number; total: number; created: number; skipped: number } | null>(null);
-  const [importSummary, setImportSummary] = useState<null | { created: number; skipped: number; reasons: string[] }>(null);
+  const [importSummary, setImportSummary] = useState<null | { created: number; skipped: number; reasons: string[]; lineNumbers: number[] }>(null);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -264,12 +264,12 @@ export default function TransactionsPage() {
 
       // Process each row and create transactions
       const uploadedTransactions = [];
-      const skippedTransactions = [];
-      
+      const skippedTransactions: { row: Record<string, string>; reason: string; lineNumber: number }[] = [];
+
       // Function to map CSV transaction types to database types
       const mapTransactionType = (csvType: string): string => {
         const normalizedType = csvType.trim().toLowerCase();
-        
+
         // Map various CSV type formats to database types
         const typeMap: { [key: string]: string } = {
           // Standard formats
@@ -277,14 +277,14 @@ export default function TransactionsPage() {
           'expenses': 'EXPENSE',
           'income': 'INCOME',
           'return': 'RETURN',
-          
+
           // Expense Savings variations
           'expense savings': 'EXPENSE_SAVINGS',
           'expense_savings': 'EXPENSE_SAVINGS',
           'expensesavings': 'EXPENSE_SAVINGS',
           'savings': 'EXPENSE_SAVINGS',
           'saving': 'EXPENSE_SAVINGS',
-          
+
           // Common variations
           'spend': 'EXPENSE',
           'spending': 'EXPENSE',
@@ -295,11 +295,12 @@ export default function TransactionsPage() {
           'refund': 'RETURN',
           'reimbursement': 'RETURN'
         };
-        
+
         return typeMap[normalizedType] || 'EXPENSE'; // Default to EXPENSE if not found
       };
 
-      for (const row of csvData) {
+      for (let i = 0; i < csvData.length; i++) {
+        const row = csvData[i];
         // Match the provided template format exactly
         const cleanAmount = (val: string) => {
           if (!val) return 0;
@@ -321,7 +322,8 @@ export default function TransactionsPage() {
         }
         // Description is now optional
         if (skipReason) {
-          skippedTransactions.push({ row, reason: skipReason });
+          // CSV line number is i + 2 (accounting for 0-index and header row)
+          skippedTransactions.push({ row, reason: skipReason, lineNumber: i + 2 });
         } else {
           uploadedTransactions.push(transaction);
         }
@@ -374,12 +376,14 @@ export default function TransactionsPage() {
             
             if (progressData.completed) {
               completed = true;
-              
-              const reasons = skippedTransactions.map((skipped, idx) => `${idx + 1}. ${skipped.reason}`);
+
+              const reasons = skippedTransactions.map((skipped) => `Line ${skipped.lineNumber}: ${skipped.reason}`);
+              const lineNumbers = skippedTransactions.map((skipped) => skipped.lineNumber);
               setImportSummary({
                 created: progressData.created,
                 skipped: progressData.skipped + skippedTransactions.length,
                 reasons,
+                lineNumbers,
               });
               
               const toastDescription = `Successfully imported ${progressData.created} transactions.`;
@@ -613,24 +617,32 @@ export default function TransactionsPage() {
         </div>
       )}
       {importSummary && (
-        <div className="w-full flex flex-col items-center my-4 p-4 bg-white border rounded shadow">
-          <h2 className="text-lg font-bold mb-2">CSV Import Summary</h2>
-          <p className="mb-1">Created: <span className="font-mono">{importSummary.created}</span></p>
-          <p className="mb-1">Skipped: <span className="font-mono">{importSummary.skipped}</span></p>
-          {importSummary.reasons.length > 0 && (
-            <div className="mt-2 text-left w-full">
-              <p className="font-semibold">Reasons for skipped transactions:</p>
-              <ul className="list-disc ml-6 text-sm">
-                {importSummary.reasons.slice(0, 10).map((reason, idx) => (
-                  <li key={idx}>{reason}</li>
-                ))}
-                {importSummary.reasons.length > 10 && (
-                  <li>...and {importSummary.reasons.length - 10} more.</li>
-                )}
-              </ul>
+        <Card className="bg-card/50 backdrop-blur-sm border-border/20">
+          <CardContent className="p-6">
+            <h2 className="text-lg font-bold mb-4 text-foreground">CSV Import Summary</h2>
+            <div className="space-y-2 mb-4">
+              <p className="text-foreground">
+                Created: <span className="font-mono font-semibold text-emerald-500">{importSummary.created}</span>
+              </p>
+              <p className="text-foreground">
+                Skipped: <span className="font-mono font-semibold text-amber-500">{importSummary.skipped}</span>
+              </p>
             </div>
-          )}
-        </div>
+            {importSummary.reasons.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-border/40">
+                <p className="font-semibold mb-3 text-foreground">Skipped rows (CSV line numbers):</p>
+                <ul className="list-disc ml-6 text-sm text-muted-foreground space-y-1">
+                  {importSummary.reasons.slice(0, 10).map((reason, idx) => (
+                    <li key={idx}>{reason}</li>
+                  ))}
+                  {importSummary.reasons.length > 10 && (
+                    <li className="text-amber-500">...and {importSummary.reasons.length - 10} more skipped rows.</li>
+                  )}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       
