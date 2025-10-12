@@ -17,20 +17,21 @@ model User {
   name         String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
-  
+
   // Relations
   transactions       Transaction[]
   categories         Category[]
   budgets            Budget[]
   descriptions       Description[]
   investmentAccounts InvestmentAccount[]
-  
+  assetAllocations   AssetAllocation[]
+
   // Subaccount relations
   sentInvitations     SubaccountInvitation[] @relation("InviterUser")
-  receivedInvitations SubaccountInvitation[] @relation("InviteeUser") 
+  receivedInvitations SubaccountInvitation[] @relation("InviteeUser")
   ownedAccounts       SubaccountAccess[]     @relation("AccountOwner")
   accessibleAccounts  SubaccountAccess[]     @relation("SubaccountUser")
-  
+
   @@map("users")
 }
 
@@ -114,11 +115,27 @@ model InvestmentAccount {
   userId               String
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
-  
+
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@map("investment_accounts")
+}
+
+model AssetAllocation {
+  id                       String   @id @default(cuid())
+  assetName                String
+  idealAllocationPercent   Float
+  currentAllocationAmount  Float
+  userId                   String
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([assetName, userId])
+  @@map("asset_allocations")
 }
 
 enum TransactionType {

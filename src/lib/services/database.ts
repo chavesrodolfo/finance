@@ -777,7 +777,7 @@ export async function requestAccessAgain(requesterUserId: string, ownerEmail: st
     if (existingInvitation.status === 'PENDING') {
       throw new Error('Access request already pending')
     }
-    
+
     // Update existing invitation to PENDING status (for ACCEPTED, DECLINED, or EXPIRED)
     const invitation = await prisma.subaccountInvitation.update({
       where: { id: existingInvitation.id },
@@ -786,7 +786,7 @@ export async function requestAccessAgain(requesterUserId: string, ownerEmail: st
         updatedAt: new Date()
       }
     })
-    
+
     return {
       invitation,
       message: 'Access request sent successfully'
@@ -807,6 +807,92 @@ export async function requestAccessAgain(requesterUserId: string, ownerEmail: st
     invitation,
     message: 'Access request sent successfully'
   }
+}
+
+// Asset Allocation functions
+export async function getUserAssetAllocations(userId: string, targetUserId?: string) {
+  let effectiveUserId = userId
+
+  // If targetUserId is provided, it's expected to be a Stack user ID, so convert to database user ID
+  if (targetUserId) {
+    const targetUser = await getUserByStackId(targetUserId)
+    if (!targetUser) {
+      throw new Error('Target user not found')
+    }
+
+    // Verify access if targetUserId is different from current user
+    const hasAccess = await hasAccountAccess(userId, targetUser.id)
+    if (!hasAccess) {
+      throw new Error('Access denied to target account')
+    }
+
+    effectiveUserId = targetUser.id
+  }
+
+  return await prisma.assetAllocation.findMany({
+    where: { userId: effectiveUserId },
+    orderBy: {
+      assetName: 'asc'
+    }
+  })
+}
+
+export async function createAssetAllocation(data: {
+  assetName: string
+  idealAllocationPercent: number
+  currentAllocationAmount: number
+  userId: string
+}) {
+  return await prisma.assetAllocation.create({
+    data
+  })
+}
+
+export async function updateAssetAllocation(
+  allocationId: string,
+  userId: string,
+  data: {
+    assetName?: string
+    idealAllocationPercent?: number
+    currentAllocationAmount?: number
+  }
+) {
+  // First verify the allocation belongs to the user
+  const existingAllocation = await prisma.assetAllocation.findFirst({
+    where: {
+      id: allocationId,
+      userId: userId
+    }
+  })
+
+  if (!existingAllocation) {
+    return null
+  }
+
+  return await prisma.assetAllocation.update({
+    where: { id: allocationId },
+    data
+  })
+}
+
+export async function deleteAssetAllocation(allocationId: string, userId: string) {
+  // First verify the allocation belongs to the user
+  const existingAllocation = await prisma.assetAllocation.findFirst({
+    where: {
+      id: allocationId,
+      userId: userId
+    }
+  })
+
+  if (!existingAllocation) {
+    return false
+  }
+
+  await prisma.assetAllocation.delete({
+    where: { id: allocationId }
+  })
+
+  return true
 }
 
 
